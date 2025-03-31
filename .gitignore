@@ -1,0 +1,6 @@
+__pycache__
+.env
+chrome_profile/
+downloads/
+error_screenshot.png
+.DS_Store
