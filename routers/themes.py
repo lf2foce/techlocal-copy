@@ -10,7 +10,7 @@ from services.telegram_handler import send_telegram_message
 router = APIRouter(prefix="/themes", tags=["Themes"])
 
 @router.post("/campaigns/{campaign_id}/generate_themes", response_model=List[ThemeResponse])
-def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
+async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -29,15 +29,18 @@ def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
         )
         db.add(theme)
         db.flush()  # Get ID for telegram
-        send_telegram_message(f"🎯 New theme created (ID: {theme.id}): {title}\n{story}")
+        await send_telegram_message(f"🎯 New theme created (ID: {theme.id}): {title}\n{story}")
         new_themes.append(theme)
 
     db.commit()
     return new_themes
 
+@router.get("/campaigns/{campaign_id}", response_model=List[ThemeResponse])
+async def list_themes_by_campaign(campaign_id: int, db: Session = Depends(get_db)):
+    return db.query(Theme).filter(Theme.campaign_id == campaign_id).order_by(Theme.id).all()
 
 @router.post("/{theme_id}/select", response_model=ThemeResponse)
-def select_theme(theme_id: int, db: Session = Depends(get_db)):
+async def select_theme(theme_id: int, db: Session = Depends(get_db)):
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     if not theme:
         raise HTTPException(status_code=404, detail="Theme not found")
@@ -51,10 +54,10 @@ def select_theme(theme_id: int, db: Session = Depends(get_db)):
     theme.is_selected = True
     theme.status = ThemeStatus.selected
     db.commit()
-    send_telegram_message(f"✅ Theme selected (ID: {theme.id}): {theme.title}")
+    await send_telegram_message(f"✅ Theme selected (ID: {theme.id}): {theme.title}")
 
     # Automatically trigger post generation after selecting a theme
     generated_count = generate_posts_from_theme(theme, db)
-    # send_telegram_message(f"📝 {generated_count} posts generated from theme {theme.id}")
+    await send_telegram_message(f"📝 {generated_count} posts generated from theme {theme.id}")
 
     return theme

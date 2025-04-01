@@ -2,13 +2,19 @@ from pydantic import BaseModel, Field
 from typing import Optional, Literal
 from datetime import date, datetime
 
+from enum import Enum
+
+class GenerationMode(str, Enum):
+    pre_batch = "pre-batch"
+    just_in_time = "just-in-time"
+    
 class CampaignBase(BaseModel):
     title: str
     repeat_every_days: int = Field(..., gt=0)
     target_customer: Optional[str] = None
     insight: Optional[str] = None
     description: Optional[str] = None
-    generation_mode: Literal["pre-batch", "just-in-time"] = "just-in-time"
+    generation_mode: GenerationMode = GenerationMode.just_in_time
 
 class CampaignCreate(CampaignBase):
     pass
@@ -22,6 +28,7 @@ class CampaignResponse(CampaignBase):
 
     class Config:
         from_attributes = True
+        use_enum_values = True
 
 class ThemeBase(BaseModel):
     title: str

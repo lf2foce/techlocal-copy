@@ -30,7 +30,7 @@ def generate_posts_from_theme(theme: Theme, db: Session) -> int:
         return 0
 
     num_posts = campaign.repeat_every_days + 5
-    now = datetime.utcnow()
+    now = datetime.now()
 
     for i in range(num_posts):
         post = ContentPost(
