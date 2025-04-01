@@ -64,18 +64,36 @@ async def telegram_webhook(request: Request):
                     insight = args[3]
                     desc = " ".join(args[4:])
                     reply = await create_campaign(title, days, target, insight, desc)
-            elif cmd == "/generate_themes" and args:
-                reply = await generate_themes(args[0])
-            elif cmd == "/themes" and args:
-                reply = await list_themes(args[0])
-            elif cmd == "/select_theme" and args:
-                reply = await select_theme(args[0])
-            elif cmd == "/posts" and args:
-                reply = await list_posts(args[0])
-            elif cmd == "/view_post" and args:
-                reply = await view_post(int(args[0]))
-            elif cmd == "/redo_post" and args:
-                reply = await redo_post(args[0])
+            elif cmd == "/generate_themes":
+                if not args:
+                    reply = "Usage: /generate_themes <campaign_id> - Generate 5 unique themes for your campaign"
+                else:
+                    reply = await generate_themes(args[0])
+            elif cmd == "/themes":
+                if not args:
+                    reply = "Usage: /themes <campaign_id> - View all themes for your campaign"
+                else:
+                    reply = await list_themes(args[0])
+            elif cmd == "/select_theme":
+                if not args:
+                    reply = "Usage: /select_theme <theme_id> - Choose a theme and start generating posts"
+                else:
+                    reply = await select_theme(args[0])
+            elif cmd == "/posts":
+                if not args:
+                    reply = "Usage: /posts <campaign_id> - View all posts in your campaign"
+                else:
+                    reply = await list_posts(args[0])
+            elif cmd == "/view_post":
+                if not args:
+                    reply = "Usage: /view_post <post_id> - See the full content of a specific post"
+                else:
+                    reply = await view_post(int(args[0]))
+            elif cmd == "/redo_post":
+                if not args:
+                    reply = "Usage: /redo_post <post_id> - Not happy with a post? Regenerate it!"
+                else:
+                    reply = await redo_post(args[0])
             else:
                 reply = "Unknown command. Try /start"
 

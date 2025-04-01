@@ -79,6 +79,10 @@ def start():
     return welcome_msg
 
 async def create_campaign(title, repeat_days, target_customer, insight, description):
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/campaigns/"
+    logger.info(f"Attempting to create campaign at {endpoint}")
+    
     payload = {
         "title": title,
         "repeat_every_days": repeat_days,
@@ -87,18 +91,33 @@ async def create_campaign(title, repeat_days, target_customer, insight, descript
         "description": description,
         "generation_mode": "pre-batch"
     }
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.post(f"{API_BASE}/campaigns/", json=payload)
+            res = await client.post(endpoint, json=payload)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             campaign = res.json()
             success_msg = f"✅ Campaign created! ID: {campaign['id']}"
             example_msg = "\n\nCreate another campaign using this format:\n/create_campaign <title> <repeat_days> \"<target_customer>\" \"<insight>\" \"<description>\""
             logger.info(f"Campaign created successfully with ID: {campaign['id']}")
             return success_msg + example_msg
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to create campaign: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while creating campaign")
+            return "❌ Failed to create campaign: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while creating campaign: {str(e)}")
+            return f"❌ Failed to create campaign: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while creating campaign: {str(e)}")
+            return "❌ Failed to create campaign: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to create campaign: {e}")
-            return "❌ Failed to create campaign."
+            logger.error(f"Unexpected error while creating campaign: {str(e)}")
+            return "❌ Failed to create campaign: An unexpected error occurred. Please try again later."
 
 async def list_campaigns():
     if not API_BASE:
@@ -138,64 +157,182 @@ async def list_campaigns():
             return "❌ Failed to fetch campaigns: An unexpected error occurred. Please try again later."
 
 async def generate_themes(campaign_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/themes/campaigns/{campaign_id}/generate_themes/"
+    logger.info(f"Attempting to generate themes at {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.post(f"{API_BASE}/themes/campaigns/{campaign_id}/generate_themes/")
+            res = await client.post(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             return f"🎯 5 themes generated for campaign {campaign_id}"
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to generate themes: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while generating themes")
+            return "❌ Failed to generate themes: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while generating themes: {str(e)}")
+            return f"❌ Failed to generate themes: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while generating themes: {str(e)}")
+            return "❌ Failed to generate themes: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to generate themes: {e}")
-            return "❌ Failed to generate themes."
+            logger.error(f"Unexpected error while generating themes: {str(e)}")
+            return "❌ Failed to generate themes: An unexpected error occurred. Please try again later."
 
 async def list_themes(campaign_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/themes/campaigns/{campaign_id}/"
+    logger.info(f"Attempting to fetch themes from {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.get(f"{API_BASE}/themes/campaigns/{campaign_id}/")
+            res = await client.get(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             themes = res.json()
+            if not themes:
+                return "📋 No themes found. Generate some using /generate_themes"
             return "📚 Themes:\n" + "\n".join([f"{t['id']}: {t['title']}" for t in themes])
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to fetch themes: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while fetching themes")
+            return "❌ Failed to fetch themes: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while fetching themes: {str(e)}")
+            return f"❌ Failed to fetch themes: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while fetching themes: {str(e)}")
+            return "❌ Failed to fetch themes: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to fetch themes: {e}")
-            return "❌ Failed to fetch themes."
+            logger.error(f"Unexpected error while fetching themes: {str(e)}")
+            return "❌ Failed to fetch themes: An unexpected error occurred. Please try again later."
 
 async def select_theme(theme_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/themes/{theme_id}/select/"
+    logger.info(f"Attempting to select theme at {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.post(f"{API_BASE}/themes/{theme_id}/select/")
+            res = await client.post(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             return f"✅ Theme {theme_id} selected and posts are being generated."
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to select theme: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while selecting theme")
+            return "❌ Failed to select theme: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while selecting theme: {str(e)}")
+            return f"❌ Failed to select theme: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while selecting theme: {str(e)}")
+            return "❌ Failed to select theme: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to select theme: {e}")
-            return "❌ Failed to select theme."
+            logger.error(f"Unexpected error while selecting theme: {str(e)}")
+            return "❌ Failed to select theme: An unexpected error occurred. Please try again later."
 
 async def list_posts(campaign_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/content/campaigns/{campaign_id}/posts"
+    logger.info(f"Attempting to fetch posts from {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.get(f"{API_BASE}/content/campaigns/{campaign_id}/posts/")
+            res = await client.get(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             posts = res.json()
+            if not posts:
+                return "📋 No posts found yet. They will be generated after theme selection."
             return "📝 Posts:\n" + "\n".join([f"{p['id']}: {p['title']} ({p['status']})" for p in posts])
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to fetch posts: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while fetching posts")
+            return "❌ Failed to fetch posts: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while fetching posts: {str(e)}")
+            return f"❌ Failed to fetch posts: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while fetching posts: {str(e)}")
+            return "❌ Failed to fetch posts: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to fetch posts: {e}")
-            return "❌ Failed to fetch posts."
+            logger.error(f"Unexpected error while fetching posts: {str(e)}")
+            return "❌ Failed to fetch posts: An unexpected error occurred. Please try again later."
 
 async def view_post(post_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/content/posts/{post_id}"
+    logger.info(f"Attempting to fetch post from {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.get(f"{API_BASE}/content/posts/{post_id}/")  # Fixed endpoint
+            res = await client.get(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             post = res.json()
             return f"📄 Post {post['id']}:\n{post['content']}\n\nStatus: {post['status']}"
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to fetch post: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while fetching post data")
+            return "❌ Failed to fetch post: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while fetching post: {str(e)}")
+            return f"❌ Failed to fetch post: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while fetching post: {str(e)}")
+            return "❌ Failed to fetch post: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to fetch post: {e}")
-            return "❌ Failed to fetch post."
+            logger.error(f"Unexpected error while fetching post: {str(e)}")
+            return "❌ Failed to fetch post: An unexpected error occurred. Please try again later."
 
 async def redo_post(post_id):
-    async with httpx.AsyncClient(timeout=httpx.Timeout(10.0, connect=5.0)) as client:
+    base_url = API_BASE.rstrip('/')
+    endpoint = f"{base_url}/content/{post_id}/redo"
+    logger.info(f"Attempting to regenerate post at {endpoint}")
+    
+    async with httpx.AsyncClient(timeout=httpx.Timeout(30.0, connect=10.0), follow_redirects=True) as client:
         try:
-            res = await client.post(f"{API_BASE}/content/posts/{post_id}/redo/")
+            res = await client.post(endpoint)
+            logger.info(f"API Response status: {res.status_code}")
+            if res.history:
+                logger.info(f"Request was redirected. Final URL: {res.url}")
             res.raise_for_status()
             return f"🔁 Post {post_id} regenerated."
+        except httpx.ConnectTimeout:
+            logger.error(f"Connection timeout while connecting to {endpoint}")
+            return "❌ Failed to regenerate post: Connection timeout. Please try again."
+        except httpx.ReadTimeout:
+            logger.error("Read timeout while regenerating post")
+            return "❌ Failed to regenerate post: Server took too long to respond. Please try again."
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP {e.response.status_code} error while regenerating post: {str(e)}")
+            return f"❌ Failed to regenerate post: Server returned {e.response.status_code} error. Please try again later."
+        except httpx.RequestError as e:
+            logger.error(f"Request failed while regenerating post: {str(e)}")
+            return "❌ Failed to regenerate post: Network or connection error. Please check your connection."
         except Exception as e:
-            logger.error(f"Failed to redo post: {e}")
-            return "❌ Failed to redo post."
+            logger.error(f"Unexpected error while regenerating post: {str(e)}")
+            return "❌ Failed to regenerate post: An unexpected error occurred. Please try again later."

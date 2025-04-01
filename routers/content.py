@@ -9,6 +9,13 @@ from services.content_generator import approve_post as approve_post_logic
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
+@router.get("/posts/{post_id}", response_model=ContentPostResponse)
+def get_post(post_id: int, db: Session = Depends(get_db)):
+    post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+    return post
+
 @router.get("/campaigns/{campaign_id}/posts", response_model=List[ContentPostResponse])
 def list_campaign_posts(campaign_id: int, db: Session = Depends(get_db)):
     return db.query(ContentPost).filter(ContentPost.campaign_id == campaign_id).order_by(ContentPost.created_at).all()
