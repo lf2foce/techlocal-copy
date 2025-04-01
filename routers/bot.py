@@ -39,6 +39,18 @@ def ping():
 async def telegram_webhook(request: Request):
     try:
         data = await request.json()
+        
+        # Handle callback queries (button clicks)
+        if callback_query := data.get("callback_query"):
+            chat_id = callback_query["message"]["chat"]["id"]
+            callback_data = callback_query["data"]
+            
+            if callback_data.startswith("select_theme_"):
+                theme_id = callback_data.split("_")[-1]
+                reply = await select_theme(theme_id)
+                await send_telegram_message(reply, chat_id)
+            return {"ok": True}
+            
         message = data.get("message")
         if not message:
             return {"ok": True}
