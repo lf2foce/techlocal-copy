@@ -15,6 +15,8 @@ base_url = API_BASE.rstrip('/')
 
 # Shared utility function for making API requests
 async def make_api_request(endpoint: str, method: str = 'get', data: dict = None):
+    # Normalize endpoint by removing trailing slashes for consistency
+    endpoint = endpoint.rstrip('/')
     url = f"{base_url}/{endpoint}"
     logger.info(f"Attempting {method.upper()} request to {url}")
     
@@ -167,8 +169,16 @@ async def list_campaigns():
 
 async def generate_themes(campaign_id):
     try:
-        await make_api_request(f'themes/campaigns/{campaign_id}/generate_themes/', 'post')
-        return f"🎯 5 themes generated for campaign {campaign_id}"
+        # First check if campaign exists
+        try:
+            campaign = await make_api_request(f'campaigns/{campaign_id}')
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return f"⚠️ Campaign {campaign_id} not found. Use /campaigns to see available campaigns."
+            raise
+            
+        await make_api_request(f'themes/campaigns/{campaign_id}/generate_themes', 'post')
+        return f"🎯 5 themes generated for campaign {campaign_id}\n\nUse /themes {campaign_id} to view and select a theme."
     except Exception as e:
         if isinstance(e, httpx.ConnectTimeout):
             return "❌ Failed to generate themes: Connection timeout. Please try again."
@@ -185,15 +195,15 @@ async def list_themes(campaign_id):
     try:
         # First check if campaign exists
         try:
-            await make_api_request(f'campaigns/{campaign_id}')
+            campaign = await make_api_request(f'campaigns/{campaign_id}')
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                return "⚠️ Campaign not found. Please check if the campaign ID exists."
+                return "⚠️ Campaign not found. Please check if the campaign ID exists or use /campaigns to see available campaigns."
             raise
 
-        themes = await make_api_request(f'themes/campaigns/{campaign_id}/')
+        themes = await make_api_request(f'themes/campaigns/{campaign_id}')
         if not themes:
-            return "📋 No themes found. Use /generate_themes to create new themes."
+            return f"📋 No themes found for campaign '{campaign.get('title', 'Unknown')}'. Use /generate_themes {campaign_id} to create new themes."
         
         # Create inline keyboard markup with clear status indicators
         keyboard = {
@@ -225,14 +235,24 @@ async def select_theme(theme_id):
     try:
         # First check if theme exists and get its details
         try:
-            theme = await make_api_request(f'themes/{theme_id}/')
+            # Remove trailing slash to ensure consistent URL format
+            theme = await make_api_request(f'themes/{theme_id}')
             if not theme:
                 logger.error(f"Theme {theme_id} returned empty response")
                 return "⚠️ Theme not found or invalid. Please check the theme ID and try again."
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error accessing theme {theme_id}: {e.response.status_code}")
             if e.response.status_code == 404:
-                return "⚠️ Theme not found. Please check if the theme ID exists and try again."
+                # Try to get campaign themes to provide better guidance
+                try:
+                    # Get all campaigns to suggest valid options
+                    campaigns = await make_api_request('campaigns')
+                    if campaigns:
+                        campaign_list = "\n".join([f"- Campaign {c['id']}: {c['title']}" for c in campaigns[:5]])
+                        return f"⚠️ Theme {theme_id} not found. Available campaigns:\n{campaign_list}\n\nUse /themes <campaign_id> to see available themes."
+                except Exception:
+                    pass
+                return f"⚠️ Theme {theme_id} not found. Please check if the theme ID exists and try again."
             return f"⚠️ Server error: {e.response.status_code}. Please try again later."
         except Exception as e:
             logger.error(f"Unexpected error accessing theme {theme_id}: {e}")
@@ -246,7 +266,7 @@ async def select_theme(theme_id):
             
         # Check if any theme is already selected for this campaign
         try:
-            campaign_themes = await make_api_request(f'themes/campaigns/{campaign_id}/')
+            campaign_themes = await make_api_request(f'themes/campaigns/{campaign_id}')
             if not campaign_themes:
                 logger.error(f"No themes found for campaign {campaign_id}")
                 return "⚠️ No themes found for this campaign."
@@ -254,7 +274,7 @@ async def select_theme(theme_id):
             for t in campaign_themes:
                 if t.get('status') == 'selected':
                     logger.info(f"Theme {t.get('id')} is already selected for campaign {campaign_id}")
-                    return f"⚠️ Theme is commited for this campaign, please generate new campaign"
+                    return f"⚠️ Theme {t.get('id')} is already selected for this campaign. To use a different theme, please create a new campaign first."
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error checking campaign themes: {e}")
             return f"⚠️ Error checking campaign themes. Please try again later."
@@ -268,9 +288,9 @@ async def select_theme(theme_id):
             return f"⚠️ Theme '{theme.get('title', 'Unknown')}' has already been selected."
             
         try:
-            await make_api_request(f'themes/{theme_id}/select/', 'post')
+            await make_api_request(f'themes/{theme_id}/select', 'post')
             logger.info(f"Successfully selected theme {theme_id}")
-            return f"✅ Theme '{theme.get('title', 'Unknown')}' has been selected successfully."
+            return f"✅ Theme '{theme.get('title', 'Unknown')}' has been selected successfully. Posts will be generated automatically."
         except httpx.HTTPStatusError as e:
             logger.error(f"HTTP error selecting theme {theme_id}: {e}")
             return f"⚠️ Failed to select theme. Please try again later."

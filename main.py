@@ -23,6 +23,8 @@ TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from database.seed import seed_database
+    seed_database()
     async with telegram_lifespan(app):
         yield
 
