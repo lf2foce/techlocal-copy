@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 
-API_BASE = "http://localhost:8000"
+API_BASE = "https://techlocal-copy.onrender.com"
 
 st.set_page_config(page_title="Campaign Manager", layout="wide")
 st.title("📢 Campaign Content Manager")
