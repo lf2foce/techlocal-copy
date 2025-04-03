@@ -20,7 +20,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
 
     new_themes = []
     for _ in range(5):
-        title, story = generate_theme_title_and_story(campaign.title, campaign.insight)
+        title, story = generate_theme_title_and_story(campaign.title, campaign.insight, campaign.description, campaign.target_customer)
         theme = Theme(
             campaign_id=campaign_id,
             title=title,
@@ -54,21 +54,21 @@ async def select_theme(theme_id: int, db: Session = Depends(get_db)):
         await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
         raise HTTPException(status_code=404, detail=error_msg)
 
-    # Check if the theme is already in a final state
-    if theme.status not in [ThemeStatus.pending]:
-        error_msg = f"Theme {theme_id} is already finalized as {theme.status.value}. You cannot select it again."
-        await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
-        raise HTTPException(status_code=400, detail=error_msg)
+    # # Check if the theme is already in a final state
+    # if theme.status not in [ThemeStatus.pending]:
+    #     error_msg = f"Theme {theme_id} is already finalized as {theme.status.value}. You cannot select it again."
+    #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+    #     raise HTTPException(status_code=400, detail=error_msg)
 
-    # Check if any theme in this campaign is already selected
-    existing_selected = db.query(Theme).filter(
-        Theme.campaign_id == theme.campaign_id,
-        Theme.is_selected
-    ).first()
-    if existing_selected:
-        error_msg = f"Campaign already has theme {existing_selected.id} selected. Only one theme can be selected per campaign."
-        await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
-        raise HTTPException(status_code=400, detail=error_msg)
+    # # Check if any theme in this campaign is already selected
+    # existing_selected = db.query(Theme).filter(
+    #     Theme.campaign_id == theme.campaign_id,
+    #     Theme.is_selected
+    # ).first()
+    # if existing_selected:
+    #     error_msg = f"Campaign already has theme {existing_selected.id} selected. Only one theme can be selected per campaign."
+    #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+    #     raise HTTPException(status_code=400, detail=error_msg)
 
     try:
         # Deselect all other themes in the same campaign
