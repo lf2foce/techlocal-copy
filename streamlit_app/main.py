@@ -1,8 +1,8 @@
 import streamlit as st
 import requests
 
-# API_BASE = "https://techlocal-copy.onrender.com"
-API_BASE = "http://127.0.0.1:8000"
+API_BASE = "https://techlocal-copy.onrender.com"
+# API_BASE = "http://127.0.0.1:8000"
 
 st.set_page_config(page_title="Campaign Manager", layout="wide")
 st.title("📢 Campaign Content Manager")
@@ -10,11 +10,11 @@ st.title("📢 Campaign Content Manager")
 # --- Step 1: Campaign Creation ---
 st.header("1️⃣ Create a New Campaign")
 with st.form("create_campaign"):
-    title = st.text_input("Campaign Title")
-    repeat_days = st.number_input("Repeat Every X Days", min_value=1, value=10)
-    insight = st.text_input("Customer Insight")
-    target_customer = st.text_input("Target Customer")
-    description = st.text_area("Description")
+    title = st.text_input("Campaign Title", placeholder="Tên chiến dịch Marketing")
+    repeat_days = st.number_input("Số bài viết cần tạo", min_value=1, value=10)
+    insight = st.text_input("Customer Insight", placeholder="Insight chính: Họ áp lực phải thành công, nhưng cảm thấy đơn độc. Họ muốn trở thành một người đàn ông bản lĩnh – vừa mạnh mẽ, vừa tinh tế, vừa trách nhiệm.")
+    target_customer = st.text_input("Target Customer", placeholder="Tệp khách hàng mục tiêu: Nam giới 25–40 tuổi, sống tại thành thị, có gia đình hoặc sự nghiệp đang phát triển, tìm kiếm sự cân bằng & bản lĩnh cá nhân.")
+    description = st.text_area("Mô tả prompt", placeholder="Mô tả prompt cho tệp khách hàng mục tiêu")
     generation_mode = st.selectbox("Generation Mode", ["pre-batch", "just-in-time"])
     submit = st.form_submit_button("Create Campaign")
 

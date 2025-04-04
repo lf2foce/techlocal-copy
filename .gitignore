@@ -5,3 +5,4 @@ downloads/
 error_screenshot.png
 .DS_Store
 streamlit_app/
+.log
