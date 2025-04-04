@@ -2,15 +2,14 @@ import random
 from sqlalchemy.orm import Session
 from database.models import ContentPost, PostStatus, Campaign, Theme as DBTheme
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Dict, Any, List
 from pydantic import BaseModel, ValidationError
 from google import genai
 from google.genai import types
 import json
 import time
 import os
-from dotenv import load_dotenv
-from typing import List, Dict, Any
+import random
 from dotenv import load_dotenv
 from google import genai
 from google.genai import types
@@ -117,33 +116,55 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
             "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated item {post_number} in the campaign '{campaign_title}'."
         }
 
-async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, num_posts: int, concurrency: int = 3):
-    """Process post generation with a semaphore to limit concurrent API calls."""
-    # Use a semaphore to control concurrency
+async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, num_posts: int, concurrency: int = 1):
+    """Process post generation with a semaphore to limit concurrent API calls.
+    Implements rate limiting protection with smaller batch sizes and delays between requests.
+    """
+    # Use a semaphore to control concurrency - default to 1 to avoid rate limits
     semaphore = asyncio.Semaphore(concurrency)
     print(f"🚀 Starting async generation of {num_posts} posts with concurrency limit of {concurrency}")
     
     async def bounded_generate(post_number):
         print(f"⏳ Post {post_number} waiting for semaphore slot...")
-        try:
-            async with semaphore:
-                print(f"🔓 Post {post_number} acquired semaphore slot")
-                result = await generate_post_content(theme_title, theme_story, campaign_title, post_number)
-                print(f"🔒 Post {post_number} released semaphore slot")
-                return result
-        except Exception as e:
-            print(f"❌ Error in bounded_generate for post {post_number}: {str(e)}")
-            # Return a fallback post on error
-            return {
-                "title": f"Post {post_number} - {theme_title} (Fallback)",
-                "content": f"This is a fallback post for theme: '{theme_title}'. The original generation failed with error: {str(e)}"
-            }
+        max_retries = 3
+        retry_count = 0
+        base_delay = 2  # Base delay in seconds
+        
+        while retry_count <= max_retries:
+            try:
+                async with semaphore:
+                    print(f"🔓 Post {post_number} acquired semaphore slot")
+                    # Add a delay before making the API call to prevent rate limiting
+                    await asyncio.sleep(2)  # 2-second delay between requests as requested
+                    result = await generate_post_content(theme_title, theme_story, campaign_title, post_number)
+                    print(f"🔒 Post {post_number} released semaphore slot")
+                    return result
+            except Exception as e:
+                error_str = str(e)
+                retry_count += 1
+                
+                # Check if this is a rate limit error
+                if "429" in error_str and "RESOURCE_EXHAUSTED" in error_str:
+                    # Calculate exponential backoff with jitter
+                    retry_delay = base_delay * (2 ** retry_count) + random.uniform(0, 1)
+                    print(f"⚠️ Rate limit hit for post {post_number}. Retrying in {retry_delay:.2f} seconds... (Attempt {retry_count}/{max_retries})")
+                    
+                    if retry_count <= max_retries:
+                        await asyncio.sleep(retry_delay)
+                        continue
+                
+                print(f"❌ Error in bounded_generate for post {post_number}: {error_str}")
+                # Return a fallback post on error
+                return {
+                    "title": f"Post {post_number} - {theme_title} (Fallback)",
+                    "content": f"This is a fallback post for theme: '{theme_title}'. The original generation failed with error: {error_str}"
+                }
     
     # Create tasks with proper error handling
     tasks = [bounded_generate(i+1) for i in range(num_posts)]
     
     # Process in smaller batches if there are many posts
-    batch_size = 5
+    batch_size = 4  # Reduced from 5 to 4 as requested
     results = []
     
     if num_posts <= batch_size:
@@ -158,9 +179,11 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
             print(f"Processing batch {i//batch_size + 1}: posts {i+1}-{batch_end}")
             batch_results = await asyncio.gather(*tasks[i:batch_end], return_exceptions=False)
             results.extend(batch_results)
-            # Small delay between batches to avoid rate limiting
+            # Increased delay between batches to avoid rate limiting
             if batch_end < num_posts:
-                await asyncio.sleep(1)
+                delay_seconds = 5  # Increased from 1 to 5 seconds
+                print(f"⏱️ Waiting {delay_seconds} seconds before processing next batch to avoid rate limits...")
+                await asyncio.sleep(delay_seconds)
     
     # Validate results
     valid_results = []
@@ -272,7 +295,7 @@ def generate_posts_from_theme(theme: DBTheme, db: Session) -> int:
                     theme.story, 
                     campaign.title, 
                     num_posts,
-                    concurrency=3  # Limit concurrency to avoid rate limits
+                    concurrency=1  # Reduced concurrency to avoid rate limits
                 ),
                 timeout=timeout_seconds
             )
