@@ -10,3 +10,5 @@ openai
 pillow
 pandas
 openpyxl
+google-genai
+nest-asyncio
