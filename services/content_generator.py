@@ -272,6 +272,15 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
     
     if created_count > 0:
         print(f"✅ Successfully saved {created_count}/{total_posts} posts to database")
+        # Update campaign's current_step after successfully saving posts
+        try:
+            campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+            if campaign:
+                campaign.current_step = 4  # Move to the next step
+                db.commit()
+                print(f"✅ Updated campaign {campaign_id} current_step to 4")
+        except Exception as e:
+            print(f"❌ Error updating campaign current_step: {str(e)}")
     else:
         print(f"❌ Failed to save any posts to database out of {total_posts} attempted")
     
@@ -414,14 +423,13 @@ def generate_posts_from_theme(theme: DBTheme, db: Session) -> int:
         print(f"❌ Error in fallback generation: {str(e)}")
         return 0
     
-    # This line should never be reached, but kept for backward compatibility
-    return 0
+
 
 def approve_post(post_id: int, db: Session) -> ContentPost:
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
         raise ValueError("Post not found")
 
-    post.status = "scheduled"
+    post.status = "approved" #"scheduled"
     db.commit()
     return post
