@@ -18,9 +18,11 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
     # Remove old themes for clean slate
     db.query(Theme).filter(Theme.campaign_id == campaign_id).delete()
 
+    # Generate all themes at once
+    themes_data = generate_theme_title_and_story(campaign.title, campaign.insight, campaign.description, campaign.target_customer)
     new_themes = []
-    for _ in range(5):
-        title, story = generate_theme_title_and_story(campaign.title, campaign.insight, campaign.description, campaign.target_customer)
+    
+    for title, story in themes_data:
         theme = Theme(
             campaign_id=campaign_id,
             title=title,

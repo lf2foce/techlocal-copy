@@ -35,16 +35,15 @@ load_dotenv()
 #     return title, story
 
 class ThemeGenerate(BaseModel):
-    title: str
-    story: str
-# worked
-def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str) -> tuple[str, str]:
+    themes: List[dict[str, str]]
+
+def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str) -> List[tuple[str, str]]:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
         model='gemini-2.0-flash',
-        contents=f"Tạo thương hiệu cho pages với các thông tin  {insight} {target_customer}",
+        contents=f"Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. Mỗi thương hiệu phải có title và story khác nhau.",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=ThemeGenerate,
@@ -53,13 +52,14 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     )
     
     # Extract the response
-    print("Generated post based on user prompt.")
+    print("Generated 5 themes based on user prompt.")
     content = json.loads(response.text)
     
     # Validate and parse the response using Pydantic
-    blog_post = ThemeGenerate(**content)
+    themes_data = ThemeGenerate(**content)
     
-    return blog_post.title, blog_post.story
+    # Convert list of themes to list of tuples
+    return [(theme['title'], theme['story']) for theme in themes_data.themes]
 
 class BlogPost(BaseModel):
     title: str
@@ -254,7 +254,7 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
                     theme_id=theme_id,
                     title=post_content["title"],
                     content=post_content["content"],
-                    status="scheduled",
+                    status="approved",
                     created_at=now + timedelta(microseconds=batch_start + i)
                 )
                 db.add(post)
@@ -430,6 +430,6 @@ def approve_post(post_id: int, db: Session) -> ContentPost:
     if not post:
         raise ValueError("Post not found")
 
-    post.status = "approved" #"scheduled"
+    post.status = "approved" #"scheduled" "posted"
     db.commit()
     return post
