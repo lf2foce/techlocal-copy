@@ -1,5 +1,5 @@
 from database.db import SessionLocal, Base, engine
-from database.models import Campaign, Theme, ContentPost, GenerationMode, ThemeStatus, CampaignStatus, PostStatus
+from database.models import Campaign, Theme, ContentPost, ThemeStatus, CampaignStatus, PostStatus
 from datetime import datetime, timedelta
 import random
 
@@ -24,12 +24,12 @@ def seed_database():
                 target_customer=f"Target Group {i}",
                 insight=f"Customer insight {i}",
                 description=f"Description for campaign {i}",
-                generation_mode=random.choice(list(GenerationMode)),
                 status=random.choice(list(CampaignStatus)),
                 start_date=datetime.now().date(),
                 last_run_date=datetime.now().date() - timedelta(days=random.randint(1, 30)),
                 next_run_date=datetime.now().date() + timedelta(days=random.randint(1, 30)),
-                is_active=random.choice([True, False])
+                is_active=random.choice([True, False]),
+                current_step=1
             ) for i in range(1, 4)
         ]
         
