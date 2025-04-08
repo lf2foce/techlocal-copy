@@ -37,7 +37,7 @@ class ThemeResponse(ThemeBase):
     is_selected: bool
     status: str
     post_status: Optional[str] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -49,7 +49,7 @@ class ContentPostResponse(BaseModel):
     title: Optional[str] = None
     content: str
     status: str
-    created_at: datetime
+    created_at: Optional[datetime] = None
     scheduled_date: Optional[date]
     posted_at: Optional[datetime]
     feedback: Optional[str]
