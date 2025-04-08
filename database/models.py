@@ -63,7 +63,7 @@ class ContentPost(Base):
     theme_id = Column(Integer, ForeignKey("themes.id"), nullable=False)
     title = Column(String)
     content = Column(Text)
-    status = Column(Enum(PostStatus) , name="post_status", native_enum=False, default=PostStatus.approved)
+    status = Column(Enum(PostStatus, name="post_status", create_constraint=False, native_enum=False), default=PostStatus.approved)
     created_at = Column(DateTime, default=datetime.now)
     scheduled_date = Column(Date, nullable=True)
     posted_at = Column(DateTime, nullable=True)
