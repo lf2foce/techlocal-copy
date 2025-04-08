@@ -4,10 +4,6 @@ from database.db import Base
 import enum
 from datetime import datetime
 
-class GenerationMode(str, enum.Enum):
-    pre_batch = "pre-batch"
-    just_in_time = "just-in-time"
-
 class PostStatus(str, enum.Enum):
     approved = "approved"
     scheduled = "scheduled"
@@ -33,12 +29,14 @@ class Campaign(Base):
     target_customer = Column(String)
     insight = Column(String)
     description = Column(Text)
-    generation_mode = Column(Enum(GenerationMode), default=GenerationMode.just_in_time)
     status = Column(Enum(CampaignStatus), default=CampaignStatus.draft)
     start_date = Column(Date, nullable=True)
     last_run_date = Column(Date, nullable=True)
     next_run_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
+
+    current_step = Column(Integer, nullable=False, server_default="0")
+    
 
     themes = relationship("Theme", back_populates="campaign")
     posts = relationship("ContentPost", back_populates="campaign")

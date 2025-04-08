@@ -4,17 +4,13 @@ from datetime import date, datetime
 
 from enum import Enum
 
-class GenerationMode(str, Enum):
-    pre_batch = "pre-batch"
-    just_in_time = "just-in-time"
-    
 class CampaignBase(BaseModel):
     title: str
     repeat_every_days: int = Field(..., gt=0)
     target_customer: Optional[str] = None
     insight: Optional[str] = None
     description: Optional[str] = None
-    generation_mode: GenerationMode = GenerationMode.just_in_time
+    current_step: int = Field(default=1)
 
 class CampaignCreate(CampaignBase):
     pass
@@ -25,6 +21,7 @@ class CampaignResponse(CampaignBase):
     start_date: Optional[date]
     last_run_date: Optional[date]
     next_run_date: Optional[date]
+    current_step: int
 
     class Config:
         from_attributes = True
