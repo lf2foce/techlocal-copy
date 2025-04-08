@@ -34,8 +34,12 @@ load_dotenv()
 #     story = f"This theme explores how '{keyword}' relates to {campaign_title.lower()}. We’ll break down why this is crucial and how to apply it practically."
 #     return title, story
 
+class Theme(BaseModel):
+    title: str
+    story: str
+
 class ThemeGenerate(BaseModel):
-    themes: List[dict[str, str]]
+    themes: List[Theme]
 
 def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str) -> List[tuple[str, str]]:
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
