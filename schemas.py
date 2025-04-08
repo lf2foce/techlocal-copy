@@ -36,7 +36,7 @@ class ThemeResponse(ThemeBase):
     campaign_id: int
     is_selected: bool
     status: str
-    post_status: str
+    post_status: Optional[str] = None
     created_at: datetime
 
     class Config:
