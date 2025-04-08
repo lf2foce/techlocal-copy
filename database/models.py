@@ -4,7 +4,6 @@ from database.db import Base
 import enum
 from datetime import datetime
 
-# class PostStatus(str, enum.Enum):
 #     approved = "approved"
 #     scheduled = "scheduled"
 #     posted = "posted"

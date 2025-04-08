@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from database.models import Base, Campaign, Theme, ContentPost, ThemeStatus, PostStatus
+from database.models import Base, Campaign, Theme, ContentPost
 from services.content_generator import save_posts_to_db
 from datetime import datetime
 import os
