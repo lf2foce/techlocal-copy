@@ -32,6 +32,8 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
         await send_telegram_message(f"🎯 New theme created (ID: {theme.id}): {title}\n{story}")
         new_themes.append(theme)
 
+    # Update campaign step after successful theme generation
+    campaign.current_step = 2
     db.commit()
     return new_themes
 
@@ -79,6 +81,10 @@ async def select_theme(theme_id: int, db: Session = Depends(get_db)):
 
         theme.is_selected = True
         theme.status = ThemeStatus.selected
+        
+        # Update campaign step to indicate theme selection is complete
+        campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
+        campaign.current_step = 3
         db.commit()
         
         # Send success message with theme details
