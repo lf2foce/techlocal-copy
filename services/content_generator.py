@@ -62,8 +62,8 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     # Validate and parse the response using Pydantic
     themes_data = ThemeGenerate(**content)
     
-    # Convert list of themes to list of tuples
-    return [(theme['title'], theme['story']) for theme in themes_data.themes]
+    # Convert list of themes to list of tuples using dot notation for Pydantic model attributes
+    return [(theme.title, theme.story) for theme in themes_data.themes]
 
 class BlogPost(BaseModel):
     title: str
