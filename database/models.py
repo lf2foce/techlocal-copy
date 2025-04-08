@@ -35,7 +35,7 @@ class Campaign(Base):
     next_run_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
 
-    current_step = Column(Integer, nullable=False, server_default="0")
+    current_step = Column(Integer, nullable=False, server_default="4")
     
 
     themes = relationship("Theme", back_populates="campaign")

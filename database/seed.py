@@ -1,5 +1,5 @@
 from database.db import SessionLocal, Base, engine
-from database.models import Campaign, Theme, ContentPost, ThemeStatus, CampaignStatus, PostStatus
+from database.models import Campaign, Theme, ContentPost, ThemeStatus, CampaignStatus
 from datetime import datetime, timedelta
 import random
 
@@ -29,7 +29,7 @@ def seed_database():
                 last_run_date=datetime.now().date() - timedelta(days=random.randint(1, 30)),
                 next_run_date=datetime.now().date() + timedelta(days=random.randint(1, 30)),
                 is_active=random.choice([True, False]),
-                current_step=1
+                current_step=4
             ) for i in range(1, 4)
         ]
         
@@ -60,7 +60,7 @@ def seed_database():
                         theme_id=theme.id,
                         title=f"Post {i} for theme {theme.id}",
                         content=f"Content for post {i} of theme {theme.id}",
-                        status=random.choice(list(PostStatus)),
+                        status='approved',
                         created_at=datetime.now() - timedelta(days=random.randint(1, 30)),
                         scheduled_date=datetime.now().date() + timedelta(days=random.randint(1, 30)),
                         posted_at=datetime.now() - timedelta(days=random.randint(1, 30)) if random.choice([True, False]) else None
