@@ -64,7 +64,7 @@ class ContentPost(Base):
     title = Column(String)
     content = Column(Text)
     status = Column(Enum(PostStatus), default=PostStatus.approved)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
     scheduled_date = Column(Date, nullable=True)
     posted_at = Column(DateTime, nullable=True)
     feedback = Column(Text, nullable=True)
