@@ -254,7 +254,7 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
                     theme_id=theme_id,
                     title=post_content["title"],
                     content=post_content["content"],
-                    status=PostStatus.scheduled.value,  # Cast enum to string value
+                    status=PostStatus.scheduled,
                     created_at=now + timedelta(microseconds=batch_start + i)
                 )
                 db.add(post)
