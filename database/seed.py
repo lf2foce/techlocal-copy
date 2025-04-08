@@ -1,3 +1,6 @@
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent))
 from database.db import SessionLocal, Base, engine
 from database.models import Campaign, Theme, ContentPost, ThemeStatus, CampaignStatus
 from datetime import datetime, timedelta

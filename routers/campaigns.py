@@ -14,6 +14,10 @@ router = APIRouter(prefix="/campaigns", tags=["Campaigns"])
 def list_campaigns(db: Session = Depends(get_db)):
     return db.query(Campaign).order_by(Campaign.id.desc()).all()
 
+@router.get("/top", response_model=List[CampaignResponse])
+def get_top_campaigns(db: Session = Depends(get_db)):
+    return db.query(Campaign).order_by(Campaign.last_run_date.desc()).limit(5).all()
+
 @router.post("/", response_model=CampaignResponse)
 def create_campaign(payload: CampaignCreate, db: Session = Depends(get_db)):
     new_campaign = Campaign(**payload.model_dump())
