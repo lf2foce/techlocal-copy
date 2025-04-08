@@ -50,6 +50,7 @@ class Theme(Base):
     story = Column(Text)
     is_selected = Column(Boolean, default=False)
     status = Column(Enum(ThemeStatus), default=ThemeStatus.pending)
+    post_status = Column(String, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
 
     campaign = relationship("Campaign", back_populates="themes")

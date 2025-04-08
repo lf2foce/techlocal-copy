@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import Campaign, Theme, ThemeStatus
@@ -50,8 +50,25 @@ async def get_theme(theme_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Theme {theme_id} not found")
     return theme
 
+async def generate_posts_background(theme_id: int, db: Session):
+    theme = db.query(Theme).filter(Theme.id == theme_id).first()
+    try:
+        # Set post_status to pending before generation starts
+        theme.post_status = "pending"
+        db.commit()
+        generated_count = generate_posts_from_theme(theme, db)
+        # Update theme post_status to ready after successful generation
+        theme.post_status = "ready"
+        db.commit()
+        await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
+    except Exception as post_gen_error:
+        # Update theme post_status to error if generation fails
+        theme.post_status = "error"
+        db.commit()
+        await send_telegram_message(f"⚠️ Warning: Posts were not generated due to an error: {str(post_gen_error)}")
+
 @router.post("/{theme_id}/select", response_model=ThemeResponse)
-async def select_theme(theme_id: int, db: Session = Depends(get_db)):
+async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     if not theme:
         error_msg = f"Theme {theme_id} not found"
@@ -90,15 +107,11 @@ async def select_theme(theme_id: int, db: Session = Depends(get_db)):
         db.commit()
         
         # Send success message with theme details
-        success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Generating posts..."
+        success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Posts will be generated in background..."
         await send_telegram_message(success_msg)
 
-        # Automatically trigger post generation after selecting a theme
-        try:
-            generated_count = generate_posts_from_theme(theme, db)
-            await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
-        except Exception as post_gen_error:
-            await send_telegram_message(f"⚠️ Warning: Posts were not generated due to an error: {str(post_gen_error)}")
+        # Schedule post generation as a background task
+        background_tasks.add_task(generate_posts_background, theme.id, db)
 
         return theme
     except Exception as e:
