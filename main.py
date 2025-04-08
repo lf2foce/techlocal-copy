@@ -23,21 +23,6 @@ TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Run database migrations asynchronously
-    # async def run_migrations():
-    #     import alembic.config
-    #     alembicArgs = [
-    #         '--raiseerr',
-    #         'upgrade', 'head',
-    #     ]
-    #     alembic.config.main(argv=alembicArgs)
-    
-    # import asyncio
-    # asyncio.create_task(run_migrations())
-    
-    # Seed the database
-    # from database.seed import seed_database
-    # seed_database()
     
     async with telegram_lifespan(app):
         yield

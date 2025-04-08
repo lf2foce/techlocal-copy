@@ -92,6 +92,7 @@ def seed_database():
                     story=story,
                     is_selected=i == 0,
                     status=ThemeStatus.selected if i == 0 else ThemeStatus.pending,
+                    post_status='pending', # ready error
                     created_at=datetime.now() - timedelta(days=random.randint(1, 15))
                 )
                 themes.append(theme)
