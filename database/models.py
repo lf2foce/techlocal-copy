@@ -4,11 +4,11 @@ from database.db import Base
 import enum
 from datetime import datetime
 
-class PostStatus(str, enum.Enum):
-    approved = "approved"
-    scheduled = "scheduled"
-    posted = "posted"
-    disapproved = "disapproved"
+# class PostStatus(str, enum.Enum):
+#     approved = "approved"
+#     scheduled = "scheduled"
+#     posted = "posted"
+#     disapproved = "disapproved"
 
 class ThemeStatus(str, enum.Enum):
     pending = "pending"
@@ -50,7 +50,7 @@ class Theme(Base):
     story = Column(Text)
     is_selected = Column(Boolean, default=False)
     status = Column(Enum(ThemeStatus), default=ThemeStatus.pending)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.now)
 
     campaign = relationship("Campaign", back_populates="themes")
     posts = relationship("ContentPost", back_populates="theme")
@@ -63,7 +63,9 @@ class ContentPost(Base):
     theme_id = Column(Integer, ForeignKey("themes.id"), nullable=False)
     title = Column(String)
     content = Column(Text)
-    status = Column(Enum(PostStatus, name="post_status", create_constraint=False, native_enum=False), default=PostStatus.approved)
+    # status = Column(Enum(PostStatus, name="post_status", create_constraint=False, native_enum=False), default=PostStatus.approved)
+    status = Column(String, default="approved")
+
     created_at = Column(DateTime, default=datetime.now)
     scheduled_date = Column(Date, nullable=True)
     posted_at = Column(DateTime, nullable=True)

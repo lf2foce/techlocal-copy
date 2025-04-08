@@ -1,6 +1,6 @@
 import random
 from sqlalchemy.orm import Session
-from database.models import ContentPost, PostStatus, Campaign, Theme as DBTheme
+from database.models import ContentPost, Campaign, Theme as DBTheme
 from datetime import datetime, timedelta
 from typing import Dict, Any, List
 from pydantic import BaseModel, ValidationError
@@ -254,7 +254,7 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
                     theme_id=theme_id,
                     title=post_content["title"],
                     content=post_content["content"],
-                    status=PostStatus.scheduled,
+                    status="scheduled",
                     created_at=now + timedelta(microseconds=batch_start + i)
                 )
                 db.add(post)
@@ -422,6 +422,6 @@ def approve_post(post_id: int, db: Session) -> ContentPost:
     if not post:
         raise ValueError("Post not found")
 
-    post.status = PostStatus.scheduled
+    post.status = "scheduled"
     db.commit()
     return post

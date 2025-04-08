@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from database.models import ContentPost, Campaign, PostStatus
+from database.models import ContentPost, Campaign
 from datetime import date
 from services.telegram_handler import send_telegram_message
 
@@ -11,11 +11,11 @@ def run_daily_schedule(db: Session) -> int:
         # Find the next scheduled post
         post = db.query(ContentPost).filter(
             ContentPost.campaign_id == campaign.id,
-            ContentPost.status == PostStatus.scheduled
+            ContentPost.status == "scheduled"
         ).order_by(ContentPost.created_at.asc(), ContentPost.id.asc()).first()
 
         if post:
-            post.status = PostStatus.posted
+            post.status = "posted"
             post.posted_at = date.today()
             db.commit()
             send_telegram_message(

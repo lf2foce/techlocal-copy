@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database.db import get_db
-from database.models import ContentPost, PostStatus, Theme
+from database.models import ContentPost, Theme
 from schemas import ContentPostResponse
 from typing import List
 from services.telegram_handler import send_telegram_message
@@ -25,7 +25,7 @@ def disapprove_post(post_id: int, db: Session = Depends(get_db)):
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    post.status = PostStatus.disapproved
+    post.status = "disapproved"
     db.commit()
     send_telegram_message(f"❌ Post {post.id} has been disapproved.")
     return post
@@ -41,7 +41,7 @@ def redo_post(post_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Theme not found")
 
     post.content = f"[REGENERATED] Content based on theme '{theme.title}': {theme.story}"
-    post.status = PostStatus.scheduled
+    post.status = "scheduled"
     db.commit()
     send_telegram_message(f"🔁 Post {post.id} has been regenerated and rescheduled.")
     return post
