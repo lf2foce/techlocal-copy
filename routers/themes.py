@@ -50,6 +50,15 @@ async def get_theme(theme_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Theme {theme_id} not found")
     return theme
 
+@router.get("/{theme_id}/status", response_model=ThemeResponse)
+async def check_theme_status(theme_id: int, db: Session = Depends(get_db)):
+    theme = db.query(Theme).filter(Theme.id == theme_id).first()
+    if not theme:
+        raise HTTPException(status_code=404, detail=f"Theme {theme_id} not found")
+    
+    await send_telegram_message(f"🔍 Status check for theme {theme_id}: {theme.post_status}")
+    return theme
+
 async def generate_posts_background(theme_id: int, db: Session):
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     try:
