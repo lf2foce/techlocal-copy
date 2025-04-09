@@ -2,6 +2,11 @@ from sqlalchemy.orm import Session
 from database.models import ContentPost, Campaign
 from datetime import date
 from services.telegram_handler import send_telegram_message
+from fastapi import HTTPException
+import requests
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 def run_daily_schedule(db: Session) -> int:
     count = 0
@@ -15,12 +20,13 @@ def run_daily_schedule(db: Session) -> int:
         ).order_by(ContentPost.created_at.asc(), ContentPost.id.asc()).first()
 
         if post:
-            post.status = "posted"
-            post.posted_at = date.today()
-            db.commit()
-            send_telegram_message(
-                f"📢 Post from campaign '{campaign.title}' sent!\n\n{post.title}\n{post.content}"
-            )
-            count += 1
+            # Post to Facebook
+            from services.facebook_handler import post_to_facebook
+            success = post_to_facebook(post.content, campaign.title)
+            if success:
+                post.status = "posted"
+                post.posted_at = date.today()
+                db.commit()
+                count += 1
 
     return count

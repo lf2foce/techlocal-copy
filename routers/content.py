@@ -64,24 +64,11 @@ def post_to_facebook(post_id: int, db: Session = Depends(get_db)):
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    # Facebook API configuration
-    PAGE_ID = os.getenv('FACEBOOK_PAGE_ID')
-    PAGE_ACCESS_TOKEN = os.getenv('FACEBOOK_PAGE_ACCESS_TOKEN')
-    if not PAGE_ID or not PAGE_ACCESS_TOKEN:
-        raise HTTPException(status_code=500, detail="Facebook credentials not configured")
-    
-    url = f'https://graph.facebook.com/v18.0/{PAGE_ID}/feed'
-    payload = {
-        'message': post.content,
-        'access_token': PAGE_ACCESS_TOKEN
-    }
-    
-    response = requests.post(url, data=payload)
-    
-    if response.status_code == 200:
+    from services.facebook_handler import post_to_facebook
+    success = post_to_facebook(post.content)
+    if success:
         post.status = "posted"
         db.commit()
-        # send_telegram_message(f"✅ Post {post.id} has been posted to Facebook!")
         return post
     else:
-        raise HTTPException(status_code=400, detail=f"Facebook post failed: {response.text}")
+        raise HTTPException(status_code=400, detail="Failed to post to Facebook")
