@@ -6,6 +6,10 @@ from schemas import ContentPostResponse
 from typing import List
 from services.telegram_handler import send_telegram_message
 from services.content_generator import approve_post as approve_post_logic
+import requests
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 router = APIRouter(prefix="/content", tags=["Content"])
 
@@ -53,3 +57,31 @@ def approve_post(post_id: int, db: Session = Depends(get_db)):
         return post
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+@router.post("/{post_id}/post_to_facebook", response_model=ContentPostResponse)
+def post_to_facebook(post_id: int, db: Session = Depends(get_db)):
+    post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
+    if not post:
+        raise HTTPException(status_code=404, detail="Post not found")
+
+    # Facebook API configuration
+    PAGE_ID = os.getenv('FACEBOOK_PAGE_ID')
+    PAGE_ACCESS_TOKEN = os.getenv('FACEBOOK_PAGE_ACCESS_TOKEN')
+    if not PAGE_ID or not PAGE_ACCESS_TOKEN:
+        raise HTTPException(status_code=500, detail="Facebook credentials not configured")
+    
+    url = f'https://graph.facebook.com/v18.0/{PAGE_ID}/feed'
+    payload = {
+        'message': post.content,
+        'access_token': PAGE_ACCESS_TOKEN
+    }
+    
+    response = requests.post(url, data=payload)
+    
+    if response.status_code == 200:
+        post.status = "posted"
+        db.commit()
+        # send_telegram_message(f"✅ Post {post.id} has been posted to Facebook!")
+        return post
+    else:
+        raise HTTPException(status_code=400, detail=f"Facebook post failed: {response.text}")
