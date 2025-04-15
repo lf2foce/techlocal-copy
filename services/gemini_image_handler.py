@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 # Constants
-PLACEHOLDER_ERROR_IMAGE = "https://example.com/placeholder.png"
+PLACEHOLDER_ERROR_IMAGE = "/placeholder.png"
 rate_limit_delay = 2  # seconds between calls
 semaphore = asyncio.Semaphore(1)  # sequential rate-limited calls
 
@@ -60,7 +60,7 @@ async def generate_image_gemini_async(prompt: str):
 
 
 async def upload_image_gg_storage_async(image_bytes: bytes, bucket_name: str, prefix: str):
-    """Upload image bytes to GCS and return public URL."""
+    """Upload image bytes to GCS and return public URL using chunked streaming."""
     if not image_bytes:
         return PLACEHOLDER_ERROR_IMAGE
 
@@ -76,9 +76,28 @@ async def upload_image_gg_storage_async(image_bytes: bytes, bucket_name: str, pr
         filename = f"{prefix}{uuid.uuid4()}.png"
         blob = bucket.blob(filename)
 
-        await loop.run_in_executor(None, lambda: blob.upload_from_string(
-            image_bytes, content_type="image/png"
-        ))
+        # Use resumable upload for better memory management
+        chunk_size = 1024 * 1024  # 1MB chunks
+        blob.chunk_size = chunk_size
+
+        # Create a bytes stream from the image data
+        from io import BytesIO
+        stream = BytesIO(image_bytes)
+
+        # Upload in chunks using resumable upload
+        await loop.run_in_executor(
+            None,
+            lambda: blob.upload_from_file(
+                stream,
+                content_type="image/png",
+                size=stream.getbuffer().nbytes,
+                num_retries=3
+            )
+        )
+
+        # Ensure proper cleanup
+        stream.close()
+        del image_bytes
 
         return blob.public_url
     except Exception as e:
