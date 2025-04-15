@@ -88,10 +88,10 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
         for part, eng, vn in prompts
     ]}
 
-@router.post("/{post_id}/generate_images")
-def generate_images_for_post(post_id: int, db: Session = Depends(get_db)):
-    result = mock_generate_images_for_post(post_id, db)
-    return {"status": "success", "images": result}
+# @router.post("/{post_id}/generate_images")
+# def generate_images_for_post(post_id: int, db: Session = Depends(get_db)):
+#     result = mock_generate_images_for_post(post_id, db)
+#     return {"status": "success", "images": result}
 
 @router.post("/{post_id}/generate_images_real")
 async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_db)):
@@ -107,7 +107,7 @@ async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_
 
     # Generate images (real) and upload to GCS
     urls = await asyncio.gather(*[
-        generate_and_upload_async(prompt, post_id, prefix="gemini_image_", bucket_name="bucket_comic")
+        generate_and_upload_async(prompt, post_id, prefix="gemini_image_", bucket_name="bucket_nextcopy") # bucketname here
         for prompt in prompts
     ])
 
@@ -135,42 +135,42 @@ async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_
     return {"status": "success", "images": {"images": images}}
 
 # You can customize this list or plug in actual image generation logic
-MOCK_IMAGE_URLS = [
-    "https://images.unsplash.com/photo-1527090526205-beaac8dc3c62?q=80&w=600&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1445307806294-bff7f67ff225?q=80&w=600&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=600&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600&auto=format&fit=crop"
-]
+# MOCK_IMAGE_URLS = [
+#     "https://images.unsplash.com/photo-1527090526205-beaac8dc3c62?q=80&w=600&auto=format&fit=crop",
+#     "https://images.unsplash.com/photo-1445307806294-bff7f67ff225?q=80&w=600&auto=format&fit=crop",
+#     "https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=600&auto=format&fit=crop",
+#     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600&auto=format&fit=crop"
+# ]
 
-MOCK_STYLES = ["sketch", "artistic", "abstract", "cinematic", "illustration"]
+# MOCK_STYLES = ["sketch", "artistic", "abstract", "cinematic", "illustration"]
 
-import random
-def mock_generate_images_for_post(post_id: int, db: Session):
-    post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
-    if not post:
-        raise HTTPException(status_code=404, detail="Post not found")
+# import random
+# def mock_generate_images_for_post(post_id: int, db: Session):
+#     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
+#     if not post:
+#         raise HTTPException(status_code=404, detail="Post not found")
 
-    # Step 1: Get prompts from post content
-    prompt_tuples = generate_image_prompts(post.content)
+#     # Step 1: Get prompts from post content
+#     prompt_tuples = generate_image_prompts(post.content)
 
-    # Step 2: Build the images field
-    images = []
-    for i, (part, english_prompt, vietnamese_explanation) in enumerate(prompt_tuples):
-        images.append({
-            "url": MOCK_IMAGE_URLS[i % len(MOCK_IMAGE_URLS)],
-            "prompt": english_prompt,
-            "order": i,
-            "isSelected": i in [2, 3],  # select last 2 by default
-            "metadata": {
-                "width": 1024,
-                "height": 1024,
-                "style": random.choice(MOCK_STYLES)
-            }
-        })
+#     # Step 2: Build the images field
+#     images = []
+#     for i, (part, english_prompt, vietnamese_explanation) in enumerate(prompt_tuples):
+#         images.append({
+#             "url": MOCK_IMAGE_URLS[i % len(MOCK_IMAGE_URLS)],
+#             "prompt": english_prompt,
+#             "order": i,
+#             "isSelected": i in [2, 3],  # select last 2 by default
+#             "metadata": {
+#                 "width": 1024,
+#                 "height": 1024,
+#                 "style": random.choice(MOCK_STYLES)
+#             }
+#         })
 
-    # Step 3: Save to post
-    post.images = {"images": images}
-    db.commit()
-    db.refresh(post)
+#     # Step 3: Save to post
+#     post.images = {"images": images}
+#     db.commit()
+#     db.refresh(post)
 
-    return post.images
+#     return post.images
