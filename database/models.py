@@ -71,6 +71,7 @@ class ContentPost(Base):
     scheduled_date = Column(Date, nullable=True)
     posted_at = Column(DateTime, nullable=True)
     feedback = Column(Text, nullable=True)
+    image_status = Column(String, default="pending")
     image_url = Column(String, nullable=True)
     images = Column(JSONB)
     video_url = Column(String, nullable=True)

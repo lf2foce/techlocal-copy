@@ -109,6 +109,7 @@ def seed_database():
                         title=f"Exciting {theme.title} Update #{i+1}",
                         content=f"🌟 New {theme.title} Highlight! \n\n{theme.story} \n\n#Innovation #Trending #MustHave",
                         status='approved' if campaign.is_active else 'draft',
+                        image_status='pending',  # Add this line
                         created_at=datetime.now() - timedelta(days=random.randint(1, 15)),
                         scheduled_date=datetime.now().date() + timedelta(days=i*campaign.repeat_every_days),
                         posted_at=datetime.now() - timedelta(days=random.randint(1, 15)) if campaign.is_active and i == 0 else None

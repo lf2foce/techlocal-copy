@@ -8,6 +8,10 @@ from services.telegram_handler import send_telegram_message
 from services.content_generator import approve_post as approve_post_logic
 from services.image_prompt_generator import generate_image_prompts
 from services.gemini_image_handler import generate_and_upload_async
+from services.ideogram_handler import generate_and_upload_ideogram
+from fastapi import BackgroundTasks
+
+
 import asyncio
 import requests
 import os
@@ -94,47 +98,83 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
 #     return {"status": "success", "images": result}
 
 @router.post("/{post_id}/generate_images_real")
-async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_db)):
+async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
 
-    # Get raw prompts: List[Tuple[part, english_prompt, vietnamese_explanation]]
-    prompt_tuples = generate_image_prompts(post.content)
-
-    # Extract only english_prompts for image generation
-    prompts = [eng for _, eng, _ in prompt_tuples]
-
-    print('prompts: ', prompts)
-    print("start generating images")
-    # Generate images (real) and upload to GCS
-    urls = await asyncio.gather(*[
-        generate_and_upload_async(prompt, post_id, prefix="gemini_image_", bucket_name="bucket_nextcopy") # bucketname here
-        for prompt in prompts
-    ])
-
-    # Build final image JSON
-    images = []
-    for i, (prompt, url) in enumerate(zip(prompts, urls)):
-        images.append({
-            "url": url,
-            "prompt": prompt,
-            "order": i,
-            "isSelected": True,
-            "metadata": {
-                "width": 9,
-                "height": 16,
-                "style": "illustration"
-            }
-        })
-
-    # Save to DB
-    db.query(ContentPost).filter(ContentPost.id == post_id).update({
-        ContentPost.images: {"images": images}
-    })
+    # Update post status to indicate image generation is in progress
+    post.image_status = "generating"
     db.commit()
 
-    return {"status": "success", "images": {"images": images}}
+    async def generate_images_background():
+        try:
+            # Create a new session for database updates
+            from database.db import SessionLocal
+            async_db = SessionLocal()
+            try:
+                # Get fresh post instance in this session
+                post_instance = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
+                if not post_instance:
+                    raise ValueError(f"Post {post_id} not found")
+
+                # Generate prompts in background
+                prompt_tuples = generate_image_prompts(post_instance.content)
+                # Extract only english_prompts for image generation
+                prompts = [eng for _, eng, _ in prompt_tuples]
+
+                print('prompts: ', prompts)
+                print("start generating images")
+
+                # Generate images using Ideogram
+                urls = await asyncio.gather(*[
+                    generate_and_upload_ideogram(
+                        prompt,
+                        aspect_ratio="ASPECT_9_16"
+                    ) 
+                    for prompt in prompts
+                ])
+
+                # Build final image JSON
+                images = []
+                for i, (prompt, url) in enumerate(zip(prompts, urls)):
+                    if url:  # Only add successful generations
+                        images.append({
+                            "url": url,
+                            "prompt": prompt,
+                            "order": i,
+                            "isSelected": True,
+                            "metadata": {
+                                "width": 9,
+                                "height": 16,
+                                "style": "illustration"
+                            }
+                        })
+
+                # Update post with generated images
+                post_instance.images = {"images": images}
+                post_instance.image_status = "completed" if images else "failed"
+                async_db.commit()
+            finally:
+                async_db.close()
+
+        except Exception as e:
+            print(f"Error in background task: {str(e)}")
+            # Create a new session for error handling
+            async_db = SessionLocal()
+            try:
+                post_instance = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
+                if post_instance:
+                    post_instance.image_status = "failed"
+                    async_db.commit()
+            finally:
+                async_db.close()
+
+    # Schedule the background task
+    background_tasks.add_task(generate_images_background)
+
+    return {"status": "processing", "message": "Image generation started in background"}
+
 
 # You can customize this list or plug in actual image generation logic
 # MOCK_IMAGE_URLS = [

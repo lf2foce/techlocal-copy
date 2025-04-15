@@ -23,11 +23,13 @@ TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Initialize Vertex AI before starting the app
+    init_vertexai()
     async with telegram_lifespan(app):
         yield
 
 app = FastAPI(lifespan=lifespan)
-init_vertexai()
+# Remove init_vertexai() from here since it's now in lifespan
 
 # Register routers
 app.include_router(campaigns_router)
