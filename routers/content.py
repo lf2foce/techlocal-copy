@@ -105,6 +105,8 @@ async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_
     # Extract only english_prompts for image generation
     prompts = [eng for _, eng, _ in prompt_tuples]
 
+    print('prompts: ', prompts)
+    print("start generating images")
     # Generate images (real) and upload to GCS
     urls = await asyncio.gather(*[
         generate_and_upload_async(prompt, post_id, prefix="gemini_image_", bucket_name="bucket_nextcopy") # bucketname here
