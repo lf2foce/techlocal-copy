@@ -7,7 +7,7 @@ from routers.scheduler import router as scheduler_router
 from routers.content import router as content_router
 from routers.bot import telegram_router , telegram_lifespan
 
-
+from services.init_gemini import init_vertexai
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 import os
@@ -23,7 +23,7 @@ TELEGRAM_WEBHOOK_URL = os.getenv("TELEGRAM_WEBHOOK_URL")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    
+    init_vertexai()
     async with telegram_lifespan(app):
         yield
 

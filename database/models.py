@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from database.db import Base
 import enum
 from datetime import datetime
+from sqlalchemy.dialects.postgresql import JSONB
 
 #     approved = "approved"
 #     scheduled = "scheduled"
@@ -71,6 +72,7 @@ class ContentPost(Base):
     posted_at = Column(DateTime, nullable=True)
     feedback = Column(Text, nullable=True)
     image_url = Column(String, nullable=True)
+    images = Column(JSONB)
     video_url = Column(String, nullable=True)
 
     campaign = relationship("Campaign", back_populates="posts")
