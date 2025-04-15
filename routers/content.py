@@ -120,8 +120,8 @@ async def generate_real_images_for_post(post_id: int, db: Session = Depends(get_
             "order": i,
             "isSelected": True,
             "metadata": {
-                "width": 1024,
-                "height": 1024,
+                "width": 9,
+                "height": 16,
                 "style": "illustration"
             }
         })

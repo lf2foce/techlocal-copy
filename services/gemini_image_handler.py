@@ -25,12 +25,15 @@ def generate_image_gemini(prompt: str):
         try:
             logging.info(f"🎨 Gemini generation attempt {attempt + 1}: {prompt}")
             client_gemini = genai.Client(api_key=os.environ.get("GEMINI_API_KEY"))
+
             response = client_gemini.models.generate_images(
-                model="models/imagen-3.0-generate-002",
+                model="imagen-3.0-generate-002",
+                # model="models/imagen-3.0-fast-generate-001",
                 prompt=prompt,
                 config=types.GenerateImagesConfig(
                     number_of_images=1,
-                    aspect_ratio="9:16"
+                    aspect_ratio="9:16",
+                    personGeneration="ALLOW_ADULT"
                 )
             )
             if response and response.generated_images:
