@@ -38,6 +38,7 @@ def generate_image_prompts(text: str) -> List[Tuple[str, str, str]]:
 
     Yêu cầu Output:
     - english_prompt have to be has the same style (e.g. all Realistic style, or all anime style, and so on)
+    - try to remove sensitive word for gemini imagen3 generation such as young girl,  etc.
     - Return ONLY a valid JSON object (no surrounding text/markdown) with a single key 'story_prompts'.
     - Value của 'story_prompts' là list chứa 4 objects (ưu tiên 4 nếu đủ ý).
     - Mỗi object có 3 string keys: 'part', 'english_prompt', 'vietnamese_explanation', đều không rỗng.
