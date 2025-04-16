@@ -98,7 +98,12 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
 #     return {"status": "success", "images": result}
 
 @router.post("/{post_id}/generate_images_real")
-async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None):
+    # Get values from query parameters or use defaults
+    num_images = num_images if num_images is not None else 1
+    style = style if style is not None else "realistic"
+    print(f"Received request with style: {style}, num_images: {num_images}")
+    
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
@@ -119,13 +124,14 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                 if not post_instance:
                     raise ValueError(f"Post {post_id} not found")
 
-                # Generate prompts in background
-                prompt_tuples = generate_image_prompts(post_instance.content)
+                # Generate prompts in background with style preference
+                prompt_tuples = generate_image_prompts(post_instance.content, style=style, num_prompts=num_images)
                 # Extract only english_prompts for image generation
                 prompts = [eng for _, eng, _ in prompt_tuples]
 
-                print('prompts: ', prompts)
-                print("start generating images")
+                print(f"Generated {len(prompts)} prompts with style '{style}'")
+                print('Prompts:', prompts)
+                print("Starting image generation...")
 
                 # Generate images using Ideogram
                 urls = await asyncio.gather(*[
@@ -148,7 +154,7 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                             "metadata": {
                                 "width": 9,
                                 "height": 16,
-                                "style": "illustration"
+                                "style": style
                             }
                         })
 

@@ -16,7 +16,7 @@ class ImagePrompt(BaseModel):
 class ImagePromptGenerate(BaseModel):
     story_prompts: List[ImagePrompt]
 
-def generate_image_prompts(text: str) -> List[Tuple[str, str, str]]:
+def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int = 2) -> List[Tuple[str, str, str]]:
     """Generate image prompts from post content using Gemini API.
 
     Args:
@@ -27,20 +27,20 @@ def generate_image_prompts(text: str) -> List[Tuple[str, str, str]]:
     """
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    system_prompt = """
+    system_prompt = f"""
     Với vai trò là chuyên gia visual storytelling, hãy phân tích bài đăng tiếng Việt dưới đây.
-    Dựa trên tên thương hiệu, mô tả kênh và nội dung bài đăng, tạo ra ** 2 cặp prompt ảnh** minh họa các phần chính/cảm xúc quan trọng.
+    Dựa trên tên thương hiệu, mô tả kênh và nội dung bài đăng, tạo ra **{num_prompts} cặp prompt ảnh** minh họa các phần chính/cảm xúc quan trọng.
     Mỗi cặp prompt gồm:
     1. **`part` (string)**: Nhãn tiếng Việt ngắn gọn xác định phần minh họa (VD: 'Mở đầu', 'Nỗi trăn trở', 'Điểm sáng', 'Thông điệp chính', 'Lời kết nối', 'Hành động').
-    2. **`english_prompt` (string)**: Prompt **tiếng Anh** chi tiết (chủ thể, hành động, bối cảnh, ánh sáng, màu sắc, mood, phong cách [cinematic, realistic, illustration, symbolic...].
+    2. **`english_prompt` (string)**: Prompt **tiếng Anh** chi tiết (chủ thể, hành động, bối cảnh, ánh sáng, màu sắc, mood) theo phong cách {style}.
     3. **`vietnamese_explanation` (string)**: Giải thích **tiếng Việt** ngắn gọn lý do prompt phù hợp.
 
 
     Yêu cầu Output:
-    - english_prompt have to be has the same style (e.g. all Realistic style, or all anime style, and so on)
-    - try to remove sensitive word for gemini imagen3 generation such as young girl,  etc.
+    - english_prompt phải theo phong cách {style} đã chỉ định
+    - try to remove sensitive word for gemini imagen3 generation such as young girl, etc.
     - Return ONLY a valid JSON object (no surrounding text/markdown) with a single key 'story_prompts'.
-    - Value của 'story_prompts' là list chứa 2 objects (ưu tiên 2 nếu đủ ý).
+    - Value của 'story_prompts' là list chứa {num_prompts} objects.
     - Mỗi object có 3 string keys: 'part', 'english_prompt', 'vietnamese_explanation', đều không rỗng.
     """
 
