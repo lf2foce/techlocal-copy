@@ -106,6 +106,7 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
     # Update post status to indicate image generation is in progress
     post.image_status = "generating"
     db.commit()
+    db.refresh(post)
 
     async def generate_images_background():
         try:
