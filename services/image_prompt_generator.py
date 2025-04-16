@@ -16,7 +16,7 @@ class ImagePrompt(BaseModel):
 class ImagePromptGenerate(BaseModel):
     story_prompts: List[ImagePrompt]
 
-def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int = 2) -> List[Tuple[str, str, str]]:
+def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int = 1) -> List[Tuple[str, str, str]]:
     """Generate image prompts from post content using Gemini API.
 
     Args:
@@ -29,19 +29,30 @@ def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int
     
     system_prompt = f"""
     Với vai trò là chuyên gia visual storytelling, hãy phân tích bài đăng tiếng Việt dưới đây.
-    Dựa trên tên thương hiệu, mô tả kênh và nội dung bài đăng, tạo ra **{num_prompts} cặp prompt ảnh** minh họa các phần chính/cảm xúc quan trọng.
-    Mỗi cặp prompt gồm:
-    1. **`part` (string)**: Nhãn tiếng Việt ngắn gọn xác định phần minh họa (VD: 'Mở đầu', 'Nỗi trăn trở', 'Điểm sáng', 'Thông điệp chính', 'Lời kết nối', 'Hành động').
-    2. **`english_prompt` (string)**: Prompt **tiếng Anh** chi tiết (chủ thể, hành động, bối cảnh, ánh sáng, màu sắc, mood) theo phong cách {style}.
-    3. **`vietnamese_explanation` (string)**: Giải thích **tiếng Việt** ngắn gọn lý do prompt phù hợp.
+    Dựa trên nội dung bài đăng, tạo ra **{num_prompts} prompt ảnh** minh họa các phần chính/cảm xúc quan trọng.
 
+    Mỗi nhóm prompt gồm:
+    1. **`part` (string)**: Nhãn tiếng Việt ngắn gọn xác định phần minh họa (VD: 'Mở đầu', 'Nỗi trăn trở', 'Điểm sáng', 'Thông điệp chính', 'Lời kết nối', 'Hành động').
+    2. **`english_prompt` (string)**: Prompt **tiếng Anh** chi tiết theo phong cách {style}, bao gồm:
+       - Chủ thể chính và hành động (không sử dụng từ nhạy cảm như young/girl/boy/child)
+       - Bối cảnh và không gian
+       - Góc máy và khoảng cách (close-up, medium shot, wide shot)
+       - Ánh sáng và màu sắc chủ đạo
+       - Cảm xúc/mood tổng thể
+       - Tỷ lệ khung hình: 1:1 hoặc 16:9
+       - Độ phân giải: HD (1920x1080) hoặc 4K
+    3. **`vietnamese_explanation` (string)**: Giải thích **tiếng Việt** ngắn gọn về cách prompt này thể hiện nội dung và cảm xúc của phần tương ứng.
 
     Yêu cầu Output:
-    - english_prompt phải theo phong cách {style} đã chỉ định
-    - try to remove sensitive word for gemini imagen3 generation such as young girl, etc.
-    - Return ONLY a valid JSON object (no surrounding text/markdown) with a single key 'story_prompts'.
-    - Value của 'story_prompts' là list chứa {num_prompts} objects.
-    - Mỗi object có 3 string keys: 'part', 'english_prompt', 'vietnamese_explanation', đều không rỗng.
+    - english_prompt phải tuân thủ phong cách {style} và giới hạn 75-100 từ
+    - TRÁNH các từ nhạy cảm: young, girl, boy, child, baby, kid, teen, người trẻ
+    - Sử dụng các từ thay thế: person, individual, professional, character
+    - Return ONLY a valid JSON object với key 'story_prompts'
+    - Value của 'story_prompts' là list chứa {num_prompts} objects
+    - Mỗi object có 3 string keys: 'part', 'english_prompt', 'vietnamese_explanation', đều không rỗng
+
+    Ví dụ prompt tốt:
+    "A determined professional in business attire stands confidently at a modern office desk, bathed in warm sunlight streaming through floor-to-ceiling windows. Shot from a medium angle, the scene captures their purposeful expression and positive body language. The color palette emphasizes blues and warm golden tones, creating an inspiring and optimistic atmosphere. 16:9 aspect ratio, 4K resolution."
     """
 
     response = client.models.generate_content(
