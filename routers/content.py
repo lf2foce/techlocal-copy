@@ -102,7 +102,7 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
     # Get values from query parameters or use defaults
     num_images = num_images if num_images is not None else 1
     style = style if style is not None else "realistic"
-    print(f"Received request with style: {style}, num_images: {num_images}")
+    print(f"Received request with style: {style}, num_images: {num_images}, service: {image_service}")
     
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
