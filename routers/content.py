@@ -98,7 +98,7 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
 #     return {"status": "success", "images": result}
 
 @router.post("/{post_id}/generate_images_real")
-async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None):
+async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "ideogram"):
     # Get values from query parameters or use defaults
     num_images = num_images if num_images is not None else 1
     style = style if style is not None else "realistic"
@@ -133,14 +133,18 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                 print('Prompts:', prompts)
                 print("Starting image generation...")
 
-                # Generate images using Ideogram
+                # Generate images using selected service
+                from services.image_service_switcher import generate_image
+                
                 urls = await asyncio.gather(*[
-                    generate_and_upload_ideogram(
+                    generate_image(
                         prompt,
-                        aspect_ratio="ASPECT_9_16"
-                    ) 
+                        service=image_service,
+                        post_id=post_id if image_service.lower() == "gemini" else None
+                    )
                     for prompt in prompts
                 ])
+                print(f"Generated image URLs: {urls}")
 
                 # Build final image JSON
                 images = []
@@ -162,6 +166,8 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                 post_instance.images = {"images": images}
                 post_instance.image_status = "completed" if images else "failed"
                 async_db.commit()
+                async_db.refresh(post_instance)
+                print("Done: Successfully updated post with generated images in database.")
             finally:
                 async_db.close()
 

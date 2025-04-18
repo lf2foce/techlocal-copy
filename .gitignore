@@ -6,3 +6,4 @@ error_screenshot.png
 .DS_Store
 streamlit_app/
 telegram_bot.log
+service_account.json

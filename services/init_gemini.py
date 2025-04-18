@@ -3,10 +3,18 @@ import json
 import tempfile
 # from google.oauth2 import service_account
 import vertexai
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Local default vs Render secret file path fallback
+# SERVICE_ACCOUNT_PATH = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "/etc/secrets/service_account.json")
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = SERVICE_ACCOUNT_PATH
+
 
 
 def init_vertexai():
-    """Initialize Google Vertex AI with service account credentials on Render."""
+    # """Initialize Google Vertex AI with service account credentials on Render."""
     try:
         # 1️⃣ Get the JSON string from environment variable
         credentials_json_str = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS_JSON")
