@@ -34,13 +34,12 @@ def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int
     Mỗi nhóm prompt gồm:
     1. **`part` (string)**: Nhãn tiếng Việt ngắn gọn xác định phần minh họa (VD: 'Mở đầu', 'Nỗi trăn trở', 'Điểm sáng', 'Thông điệp chính', 'Lời kết nối', 'Hành động').
     2. **`english_prompt` (string)**: Prompt **tiếng Anh** chi tiết theo phong cách {style}, bao gồm:
-       - Chủ thể chính và hành động (không sử dụng từ nhạy cảm như young/girl/boy/child)
-       - Bối cảnh và không gian
+       - Chủ thể chính và hành động (ưu tiên mô tả người Việt, không sử dụng từ nhạy cảm như young/girl/boy/child)
+       - Bối cảnh và không gian (ưu tiên các địa điểm, kiến trúc, cảnh quan đặc trưng Việt Nam, không sử dụng chữ viết hoặc cờ)
        - Góc máy và khoảng cách (close-up, medium shot, wide shot)
        - Ánh sáng và màu sắc chủ đạo
        - Cảm xúc/mood tổng thể
-       - Tỷ lệ khung hình: 1:1 hoặc 16:9
-       - Độ phân giải: HD (1920x1080) hoặc 4K
+
     3. **`vietnamese_explanation` (string)**: Giải thích **tiếng Việt** ngắn gọn về cách prompt này thể hiện nội dung và cảm xúc của phần tương ứng.
 
     Yêu cầu Output:
@@ -51,8 +50,11 @@ def generate_image_prompts(text: str, style: str = "realistic", num_prompts: int
     - Value của 'story_prompts' là list chứa {num_prompts} objects
     - Mỗi object có 3 string keys: 'part', 'english_prompt', 'vietnamese_explanation', đều không rỗng
 
-    Ví dụ prompt tốt:
-    "A determined professional in business attire stands confidently at a modern office desk, bathed in warm sunlight streaming through floor-to-ceiling windows. Shot from a medium angle, the scene captures their purposeful expression and positive body language. The color palette emphasizes blues and warm golden tones, creating an inspiring and optimistic atmosphere. 16:9 aspect ratio, 4K resolution."
+    Ví dụ prompt tốt cho hình ảnh người Việt:
+    "A Vietnamese professional in traditional ao dai stands gracefully in front of a lotus pond at dawn, with soft golden light reflecting on the water. Shot from a medium-low angle to emphasize cultural pride, the scene features subtle Vietnamese architectural elements in the background. The color palette combines emerald green from the ao dai with warm golden tones, creating a harmonious blend of tradition and modernity. 16:9 aspect ratio, 4K resolution."
+    
+    Ví dụ khác:
+    "A group of Vietnamese farmers in conical hats work together in a vibrant green rice field under the afternoon sun. Wide shot captures the sweeping landscape with mountains in the distance, showcasing Vietnam's natural beauty. Earthy tones dominate with pops of color from the farmers' clothing, conveying a sense of community and hard work. Cinematic lighting enhances the dramatic shadows and textures. 16:9 aspect ratio, 4K resolution."
     """
 
     response = client.models.generate_content(

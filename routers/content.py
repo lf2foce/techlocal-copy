@@ -1,7 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from database.db import get_db
-from database.models import ContentPost, Theme
+from database.models import ContentPost, Theme, Campaign
 from schemas import ContentPostResponse
 from typing import List
 from services.telegram_handler import send_telegram_message
@@ -10,6 +10,8 @@ from services.image_prompt_generator import generate_image_prompts
 from services.gemini_image_handler import generate_and_upload_async
 from services.ideogram_handler import generate_and_upload_ideogram
 from fastapi import BackgroundTasks
+import pandas as pd
+from io import BytesIO
 
 
 import asyncio
@@ -19,6 +21,24 @@ from dotenv import load_dotenv
 load_dotenv()
 
 router = APIRouter(prefix="/content", tags=["Content"])
+
+@router.get("/export")
+def export_posts(format: str = "excel", db: Session = Depends(get_db)):
+    from services.data_export_service import export_to_excel
+    
+    if format.lower() == "excel":
+        buffer, filename = export_to_excel(db)
+        media_type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        raise HTTPException(status_code=400, detail="Only Excel export is supported")
+    
+    return Response(
+        content=buffer.getvalue(),
+        media_type=media_type,
+        headers={
+            'Content-Disposition': f'attachment; filename={filename}'
+        }
+    )
 
 @router.get("/posts/{post_id}", response_model=ContentPostResponse)
 def get_post(post_id: int, db: Session = Depends(get_db)):
@@ -153,8 +173,9 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                         images.append({
                             "url": url,
                             "prompt": prompt,
-                            "order": i,
+                            "order": i+1,
                             "isSelected": True,
+                            "provider": image_service,
                             "metadata": {
                                 "width": 9,
                                 "height": 16,

@@ -4,6 +4,7 @@ from typing import Optional
 
 from services.gemini_image_handler import generate_and_upload_async as generate_gemini
 from services.ideogram_handler import generate_and_upload_ideogram as generate_ideogram
+from services.flux_image_handler import generate_and_upload_flux as generate_flux
 
 async def generate_image(prompt: str, service: str = "gemini", post_id: Optional[int] = None) -> str:
     """Generate image using specified service.
@@ -22,6 +23,9 @@ async def generate_image(prompt: str, service: str = "gemini", post_id: Optional
             return await generate_gemini(prompt, post_id)
         elif service == "ideogram":
             result = await generate_ideogram(prompt)
+            return result if result else "/placeholder.png"
+        elif service == "flux":
+            result = await generate_flux(prompt)
             return result if result else "/placeholder.png"
         else:
             raise ValueError(f"Unsupported image service: {service}")

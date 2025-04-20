@@ -13,4 +13,5 @@ openpyxl
 google-genai
 nest-asyncio
 google-cloud-storage
+together
 google-cloud-aiplatform
