@@ -3,12 +3,14 @@ from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import ContentPost, Theme, Campaign
 from schemas import ContentPostResponse
-from typing import List
+from typing import List, Dict
 from services.telegram_handler import send_telegram_message
 from services.content_generator import approve_post as approve_post_logic
 from services.image_prompt_generator import generate_image_prompts
 from services.gemini_image_handler import generate_and_upload_async
 from services.ideogram_handler import generate_and_upload_ideogram
+from services.image_service_switcher import generate_image
+
 from fastapi import BackgroundTasks
 import pandas as pd
 from io import BytesIO
@@ -153,8 +155,6 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
                 print('Prompts:', prompts)
                 print("Starting image generation...")
 
-                # Generate images using selected service
-                from services.image_service_switcher import generate_image
                 
                 urls = await asyncio.gather(*[
                     generate_image(
@@ -210,43 +210,78 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
     return {"status": "processing", "message": "Image generation started in background"}
 
 
-# You can customize this list or plug in actual image generation logic
-# MOCK_IMAGE_URLS = [
-#     "https://images.unsplash.com/photo-1527090526205-beaac8dc3c62?q=80&w=600&auto=format&fit=crop",
-#     "https://images.unsplash.com/photo-1445307806294-bff7f67ff225?q=80&w=600&auto=format&fit=crop",
-#     "https://images.unsplash.com/photo-1519692933481-e162a57d6721?q=80&w=600&auto=format&fit=crop",
-#     "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=600&auto=format&fit=crop"
-# ]
-
-# MOCK_STYLES = ["sketch", "artistic", "abstract", "cinematic", "illustration"]
-
-# import random
-# def mock_generate_images_for_post(post_id: int, db: Session):
-#     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
-#     if not post:
-#         raise HTTPException(status_code=404, detail="Post not found")
-
-#     # Step 1: Get prompts from post content
-#     prompt_tuples = generate_image_prompts(post.content)
-
-#     # Step 2: Build the images field
-#     images = []
-#     for i, (part, english_prompt, vietnamese_explanation) in enumerate(prompt_tuples):
-#         images.append({
-#             "url": MOCK_IMAGE_URLS[i % len(MOCK_IMAGE_URLS)],
-#             "prompt": english_prompt,
-#             "order": i,
-#             "isSelected": i in [2, 3],  # select last 2 by default
-#             "metadata": {
-#                 "width": 1024,
-#                 "height": 1024,
-#                 "style": random.choice(MOCK_STYLES)
-#             }
-#         })
-
-#     # Step 3: Save to post
-#     post.images = {"images": images}
-#     db.commit()
-#     db.refresh(post)
-
-#     return post.images
+@router.post("/posts/batch_generate_images")
+async def batch_generate_images(post_ids: List[int], background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "ideogram"):
+# Get values from query parameters or use defaults
+    num_images = num_images if num_images is not None else 1
+    style = style if style is not None else "realistic"
+    
+    # Validate all posts exist and update their status
+    posts = db.query(ContentPost).filter(ContentPost.id.in_(post_ids)).all()
+    found_ids = {post.id for post in posts}
+    missing_ids = set(post_ids) - found_ids
+    if missing_ids:
+        raise HTTPException(status_code=404, detail=f"Posts not found: {missing_ids}")
+    
+    # Update status for all posts
+    for post in posts:
+        post.image_status = "generating"
+    db.commit()
+    [db.refresh(post) for post in posts]
+    
+    async def batch_generate_images_background():
+        from database.db import SessionLocal
+        async_db = SessionLocal()
+        try:
+            results = {}
+            for post_id in post_ids:
+                try:
+                    post = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
+                    prompt_tuples = generate_image_prompts(post.content, style=style, num_prompts=num_images)
+                    prompts = [eng for _, eng, _ in prompt_tuples]
+                    
+                    urls = await asyncio.gather(*[
+                        generate_image(
+                            prompt,
+                            service=image_service,
+                            post_id=post_id if image_service.lower() == "gemini" else None
+                        )
+                        for prompt in prompts
+                    ])
+                    
+                    images = []
+                    for i, (prompt, url) in enumerate(zip(prompts, urls)):
+                        if url:
+                            images.append({
+                                "url": url,
+                                "prompt": prompt,
+                                "order": i+1,
+                                "isSelected": True,
+                                "provider": image_service,
+                                "metadata": {
+                                    "width": 9,
+                                    "height": 16,
+                                    "style": style
+                                }
+                            })
+                    
+                    post.images = {"images": images}
+                    post.image_status = "completed" if images else "failed"
+                    results[post_id] = "success"
+                except Exception as e:
+                    post.image_status = "failed"
+                    results[post_id] = str(e)
+                    print(f"Error processing post {post_id}: {e}")
+                finally:
+                    async_db.commit()
+                    async_db.refresh(post)
+        finally:
+            async_db.close()
+    
+    background_tasks.add_task(batch_generate_images_background)
+    
+    return {
+        "status": "processing",
+        "message": f"Batch image generation started for {len(post_ids)} posts",
+        "post_ids": post_ids
+    }

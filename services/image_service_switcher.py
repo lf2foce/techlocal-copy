@@ -11,7 +11,7 @@ async def generate_image(prompt: str, service: str = "gemini", post_id: Optional
     
     Args:
         prompt (str): The image generation prompt
-        service (str): The service to use ("gemini" or "ideogram")
+        service (str): The service to use ("gemini", "ideogram", or "flux")
         post_id (Optional[int]): Post ID for Gemini storage path (only used with Gemini)
         
     Returns:
