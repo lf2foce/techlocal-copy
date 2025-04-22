@@ -120,7 +120,7 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
 #     return {"status": "success", "images": result}
 
 @router.post("/{post_id}/generate_images_real")
-async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "ideogram"):
+async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "gemini"):
     # Get values from query parameters or use defaults
     num_images = num_images if num_images is not None else 1
     style = style if style is not None else "realistic"
@@ -211,7 +211,7 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
 
 
 @router.post("/posts/batch_generate_images")
-async def batch_generate_images(post_ids: List[int], background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "ideogram"):
+async def batch_generate_images(post_ids: List[int], background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "gemini"):
 # Get values from query parameters or use defaults
     num_images = num_images if num_images is not None else 1
     style = style if style is not None else "realistic"
