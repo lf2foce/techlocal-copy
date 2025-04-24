@@ -41,6 +41,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
     db.commit()
     
     execution_time = time.time() - start_time
+    print(f"⏱️ Theme generation completed in {execution_time:.2f} seconds")
     # await send_telegram_message(f"⏱️ Theme generation completed in {execution_time:.2f} seconds")
     return new_themes
 
