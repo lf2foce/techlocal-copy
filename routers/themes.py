@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
+import time  # Add this import
 from database.db import get_db
 from database.models import Campaign, Theme, ThemeStatus
 from schemas import ThemeResponse
@@ -11,6 +12,7 @@ router = APIRouter(prefix="/themes", tags=["Themes"])
 
 @router.post("/campaigns/{campaign_id}/generate_themes", response_model=List[ThemeResponse])
 async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
+    start_time = time.time()
     campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campaign not found")
@@ -30,13 +32,16 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
             status=ThemeStatus.pending
         )
         db.add(theme)
-        db.flush()  # Get ID for telegram
-        await send_telegram_message(f"🎯 New theme created (ID: {theme.id}): {title}\n{story}")
+        db.flush()
+        # await send_telegram_message(f"🎯 New theme created (ID: {theme.id}): {title}\n{story}")
         new_themes.append(theme)
 
     # Update campaign step after successful theme generation
     campaign.current_step = 2
     db.commit()
+    
+    execution_time = time.time() - start_time
+    # await send_telegram_message(f"⏱️ Theme generation completed in {execution_time:.2f} seconds")
     return new_themes
 
 @router.get("/campaigns/{campaign_id}", response_model=List[ThemeResponse])
@@ -56,7 +61,7 @@ async def check_theme_status(theme_id: int, db: Session = Depends(get_db)):
     if not theme:
         raise HTTPException(status_code=404, detail=f"Theme {theme_id} not found")
     
-    await send_telegram_message(f"🔍 Status check for theme {theme_id}: {theme.post_status}")
+    # await send_telegram_message(f"🔍 Status check for theme {theme_id}: {theme.post_status}")
     return theme
 
 async def generate_posts_background(theme_id: int, db: Session):
@@ -69,7 +74,7 @@ async def generate_posts_background(theme_id: int, db: Session):
         # Update theme post_status to ready after successful generation
         theme.post_status = "ready"
         db.commit()
-        await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
+        # await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
     except Exception as post_gen_error:
         # Update theme post_status to error if generation fails
         theme.post_status = "error"
@@ -81,7 +86,7 @@ async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Ses
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     if not theme:
         error_msg = f"Theme {theme_id} not found"
-        await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+        # await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
         raise HTTPException(status_code=404, detail=error_msg)
 
     # # Check if the theme is already in a final state
@@ -116,8 +121,8 @@ async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Ses
         db.commit()
         
         # Send success message with theme details
-        success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Posts will be generated in background..."
-        await send_telegram_message(success_msg)
+        # success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Posts will be generated in background..."
+        # await send_telegram_message(success_msg)
 
         # Schedule post generation as a background task
         background_tasks.add_task(generate_posts_background, theme.id, db)

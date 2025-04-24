@@ -5,6 +5,10 @@ import random
 from together import AsyncTogether
 import pyshorteners
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 PLACEHOLDER_ERROR_IMAGE = "/placeholder.png"
 MAX_RETRIES = 3
 
