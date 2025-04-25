@@ -100,7 +100,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
             2. Creating content schedules (Vietnamese topics/quotes) aligned with the campaign strategy for a specified number of days.
             3. Writing full Vietnamese storytelling posts reflecting the campaign's tone, themes, and target audience, using the provided context for a specific day.
             4. Evaluating and improving posts based on relevance, insight, value, emotion, tone, emoji use, and call to action.
-            5. Generating multiple (3-4) relevant ENGLISH image prompts AND brief VIETNAMESE explanations for them, suitable for text-to-image AI, aligned with the flow of a given post's content and the overall campaign knowledge.
+            5. Generating EXACTLY {num_images} relevant ENGLISH image prompts AND brief VIETNAMESE explanations for them, suitable for text-to-image AI, aligned with the flow of a given post's content and the overall campaign knowledge.
             6. Generating ENGLISH image prompts for a social media avatar and cover photo, based on a brand name and campaign concept, along with brief VIETNAMESE explanations for each.
             CRITICAL: Always use the provided CAMPAIGN KNOWLEDGE/CONTEXT when generating content.
             Adhere strictly to the JSON output format when requested (names, schedule, evaluation, post, image prompts+explanation, avatar/cover prompts).
@@ -119,9 +119,12 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
             },
         )
         
+        # Inside generate_post_content function
         # Extract and parse the response
         content = json.loads(response.text)
         blog_post = BlogPost(**content)
+        
+      
         
         elapsed_time = time.time() - start_time
         print(f"✅ Completed post {post_number} in {elapsed_time:.2f} seconds. Title: '{blog_post.title}'")
@@ -140,14 +143,14 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         }
 
 async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, num_posts: int):
-    # Increase concurrency while maintaining API rate limits
-    semaphore = asyncio.Semaphore(3)  # Increased from 1 to 3
+    # Increase concurrency with proper batching
+    semaphore = asyncio.Semaphore(5)
+    batch_size = 5  # Process 5 posts at a time
     
     async def bounded_generate(post_number):
         async with semaphore:
             try:
-                # Reduced delay between requests
-                await asyncio.sleep(0.5)  
+                # Remove artificial delay since Gemini API has its own rate limiting
                 return await generate_post_content(
                     theme_title,
                     theme_story,
@@ -158,13 +161,25 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
                 print(f"Error generating post {post_number}: {str(e)}")
                 return None
     
-    # Generate posts concurrently with improved error handling
-    tasks = [bounded_generate(i) for i in range(num_posts)]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
+    # Process in concurrent batches
+    all_results = []
+    for batch_start in range(0, num_posts, batch_size):
+        batch_end = min(batch_start + batch_size, num_posts)
+        print(f"Processing batch {batch_start//batch_size + 1}: posts {batch_start+1}-{batch_end}")
+        
+        # Create tasks for current batch
+        batch_tasks = [bounded_generate(i) for i in range(batch_start, batch_end)]
+        
+        # Run batch concurrently
+        batch_results = await asyncio.gather(*batch_tasks)
+        valid_results = [r for r in batch_results if r is not None]
+        all_results.extend(valid_results)
+        
+        # Small delay between batches to prevent API throttling
+        if batch_end < num_posts:
+            await asyncio.sleep(0.5)
     
-    # Filter out failed generations
-    valid_results = [r for r in results if r is not None]
-    return valid_results
+    return all_results
 
 def save_posts_to_db(post_contents, campaign_id, theme_id, db):
     """Create posts in the database from generated content with improved batch processing."""
@@ -232,53 +247,49 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
     
     return created_count
 
-def generate_posts_from_theme(theme: DBTheme, db: Session) -> int:
-    print(f"🚀 Starting post generation for theme ID: {theme.id}, title: '{theme.title}'")
+async def generate_posts_from_theme(theme: DBTheme, db: Session) -> int:
+    print(f"🚀 Starting post generation for theme ID: {theme.id}")
+    
     campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
     if not campaign:
         print(f"❌ Campaign not found for theme ID: {theme.id}")
         return 0
 
-    # Ensure theme context is up-to-date
-    theme = db.query(DBTheme).filter(DBTheme.id == theme.id).first()
-    if not theme:
-        print(f"❌ Theme ID: {theme.id} not found in database")
-        return 0
-
     num_posts = campaign.repeat_every_days
     print(f"📊 Generating {num_posts} posts for campaign: '{campaign.title}'")
     
-    # Use FastAPI's background tasks instead of nested event loops
-    async def generate_posts():
-        try:
-            timeout_seconds = max(120, num_posts * 10)
-            posts = await asyncio.wait_for(
-                process_with_semaphore(
-                    theme.title, 
-                    theme.story, 
-                    campaign.title, 
-                    num_posts,
-                ),
-                timeout=timeout_seconds
-            )
-            return posts
-        except asyncio.TimeoutError:
-            print(f"⏱️ Generation timed out after {timeout_seconds} seconds")
-            return None
-        except Exception as e:
-            print(f"❌ Error in generation: {str(e)}")
-            return None
-
-    # Use FastAPI's background tasks
     try:
-        import asyncio
-        loop = asyncio.get_event_loop()
-        post_contents = loop.run_until_complete(generate_posts())
-        if post_contents:
-            return save_posts_to_db(post_contents, campaign.id, theme.id, db)
-        return 0
+        # Generate posts concurrently in batches
+        posts = await process_with_semaphore(
+            theme.title,
+            theme.story,
+            campaign.title,
+            num_posts
+        )
+        
+        if not posts:
+            return 0
+            
+        # Save posts in batches
+        batch_size = 10
+        for i in range(0, len(posts), batch_size):
+            batch = posts[i:i + batch_size]
+            for post_data in batch:
+                post = ContentPost(
+                    campaign_id=campaign.id,
+                    theme_id=theme.id,
+                    title=post_data["title"],
+                    content=post_data["content"],
+                    image_status="pending"
+                )
+                db.add(post)
+            db.commit()
+            print(f"✅ Saved batch {i//batch_size + 1} of {(len(posts) + batch_size - 1)//batch_size}")
+        
+        return len(posts)
+        
     except Exception as e:
-        print(f"Error in post generation: {str(e)}")
+        print(f"Error generating posts: {str(e)}")
         return 0
 
 
