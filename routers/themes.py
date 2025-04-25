@@ -66,21 +66,37 @@ async def check_theme_status(theme_id: int, db: Session = Depends(get_db)):
     return theme
 
 async def generate_posts_background(theme_id: int, db: Session):
-    theme = db.query(Theme).filter(Theme.id == theme_id).first()
+    # Create a new session for the background task
+    from database.db import SessionLocal
+    
+    # Use a new session specifically for this background task
+    db = SessionLocal()
     try:
+        theme = db.query(Theme).filter(Theme.id == theme_id).first()
+        if not theme:
+            await send_telegram_message(f"⚠️ Theme {theme_id} not found in background task")
+            return
+            
         # Set post_status to pending before generation starts
         theme.post_status = "pending"
         db.commit()
+        
         generated_count = generate_posts_from_theme(theme, db)
+        
         # Update theme post_status to ready after successful generation
         theme.post_status = "ready"
         db.commit()
-        # await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
+        
+        await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
     except Exception as post_gen_error:
         # Update theme post_status to error if generation fails
-        theme.post_status = "error"
-        db.commit()
+        if theme:
+            theme.post_status = "error"
+            db.commit()
         await send_telegram_message(f"⚠️ Warning: Posts were not generated due to an error: {str(post_gen_error)}")
+    finally:
+        # Always close the session when done
+        db.close()
 
 @router.post("/{theme_id}/select", response_model=ThemeResponse)
 async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
