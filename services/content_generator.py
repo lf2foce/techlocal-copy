@@ -47,7 +47,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
         model='gemini-2.5-flash-preview-04-17',  # Updated to newer model version
-        contents=f"Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. Mỗi thương hiệu phải có title và story khác nhau. Viết bằng tiếng việt",
+        contents=f"Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. Mỗi thương hiệu phải có title và story khác nhau, trong story ngoài câu chuyện thương hiệu hãy thêm nội dung kế hoạch cho 5 tiêu đề của 5 bài viết. Viết bằng tiếng việt",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=ThemeGenerate,
