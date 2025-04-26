@@ -46,7 +46,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
-        model='gemini-2.0-flash',
+        model='gemini-2.5-flash-preview-04-17',  # Updated to newer model version
         contents=f"Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. Mỗi thương hiệu phải có title và story khác nhau. Viết bằng tiếng việt",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
@@ -110,7 +110,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         
         # Generate response using Gemini API
         response = client.models.generate_content(
-            model='gemini-2.0-flash',
+            model='gemini-2.5-flash-preview-04-17',  # Updated model version
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',
