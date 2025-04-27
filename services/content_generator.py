@@ -46,7 +46,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
-        model='gemini-2.5-flash-preview-04-17',  # Updated to newer model version
+        model='gemini-2.0-flash',  # Updated to newer model version
         contents=f"Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. Mỗi thương hiệu phải có title và story khác nhau, trong story ngoài câu chuyện thương hiệu hãy thêm nội dung kế hoạch cho 5 tiêu đề của 5 bài viết. Viết bằng tiếng việt",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
@@ -110,7 +110,8 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         
         # Generate response using Gemini API
         response = client.models.generate_content(
-            model='gemini-2.5-flash-preview-04-17',  # Updated model version
+            # model='gemini-2.5-flash-preview-04-17',  # Updated model version
+            model='gemini-2.0-flash',  # Updated model version
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',
@@ -143,14 +144,12 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         }
 
 async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, num_posts: int):
-    # Increase concurrency with proper batching
-    semaphore = asyncio.Semaphore(5)
-    batch_size = 5  # Process 5 posts at a time
+    # Increase concurrency with higher semaphore limit for parallel processing
+    semaphore = asyncio.Semaphore(10)  # Increased from 5 to 10 for more concurrent tasks
     
     async def bounded_generate(post_number):
         async with semaphore:
             try:
-                # Remove artificial delay since Gemini API has its own rate limiting
                 return await generate_post_content(
                     theme_title,
                     theme_story,
@@ -161,91 +160,64 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
                 print(f"Error generating post {post_number}: {str(e)}")
                 return None
     
-    # Process in concurrent batches
-    all_results = []
-    for batch_start in range(0, num_posts, batch_size):
-        batch_end = min(batch_start + batch_size, num_posts)
-        print(f"Processing batch {batch_start//batch_size + 1}: posts {batch_start+1}-{batch_end}")
-        
-        # Create tasks for current batch
-        batch_tasks = [bounded_generate(i) for i in range(batch_start, batch_end)]
-        
-        # Run batch concurrently
-        batch_results = await asyncio.gather(*batch_tasks)
-        valid_results = [r for r in batch_results if r is not None]
-        all_results.extend(valid_results)
-        
-        # Small delay between batches to prevent API throttling
-        if batch_end < num_posts:
-            await asyncio.sleep(0.5)
+    # Create all tasks at once for maximum concurrency
+    all_tasks = [bounded_generate(i) for i in range(num_posts)]
     
-    return all_results
+    # Run all tasks concurrently
+    print(f"🚀 Generating {num_posts} posts concurrently...")
+    results = await asyncio.gather(*all_tasks)
+    
+    # Filter out None results from failed generations
+    valid_results = [r for r in results if r is not None]
+    print(f"✅ Successfully generated {len(valid_results)} out of {num_posts} posts")
+    
+    return valid_results
 
 def save_posts_to_db(post_contents, campaign_id, theme_id, db):
-    """Create posts in the database from generated content with improved batch processing."""
+    """Create posts in the database using optimized bulk insert."""
     if not post_contents:
         print("⚠️ No post contents provided to save")
         return 0
         
     now = datetime.now()
-    created_count = 0
-    batch_size = 5  # Process in smaller batches to avoid transaction issues
     total_posts = len(post_contents)
+    print(f"🔄 Preparing to save {total_posts} posts to database")
     
-    print(f"🔄 Starting to save {total_posts} posts to database in batches of {batch_size}")
+    # Prepare all posts for bulk insert with minimal object creation overhead
+    posts_to_insert = [
+        ContentPost(
+            campaign_id=campaign_id,
+            theme_id=theme_id,
+            title=post.get("title", f"Post {i}"),
+            content=post.get("content", ""),
+            status="approved",
+            created_at=now + timedelta(microseconds=i),
+            image_status="pending"
+        )
+        for i, post in enumerate(post_contents)
+        if isinstance(post, dict) and post.get("content")
+    ]
     
-    # Process in batches
-    for batch_start in range(0, total_posts, batch_size):
-        batch_end = min(batch_start + batch_size, total_posts)
-        current_batch = post_contents[batch_start:batch_end]
-        batch_count = 0
+    if not posts_to_insert:
+        print("❌ No valid posts to insert")
+        return 0
+    
+    try:
+        # Execute bulk insert and campaign update in a single transaction
+        db.bulk_save_objects(posts_to_insert)
+        campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
+        if campaign:
+            campaign.current_step = 4
+        db.commit()
         
-        try:
-            print(f"📦 Processing batch {batch_start//batch_size + 1}/{(total_posts + batch_size - 1)//batch_size}: posts {batch_start+1}-{batch_end}")
-            
-            # Create a fresh transaction for each batch
-            for i, post_content in enumerate(current_batch):
-                # Validate post content
-                if not isinstance(post_content, dict) or "title" not in post_content or "content" not in post_content:
-                    print(f"⚠️ Invalid post content format at index {batch_start + i}: {post_content}")
-                    continue
-                    
-                post = ContentPost(
-                    campaign_id=campaign_id,
-                    theme_id=theme_id,
-                    title=post_content["title"],
-                    content=post_content["content"],
-                    status="approved",
-                    created_at=now + timedelta(microseconds=batch_start + i)
-                )
-                db.add(post)
-                batch_count += 1
-            
-            # Commit each batch separately
-            db.commit()
-            created_count += batch_count
-            print(f"✅ Batch {batch_start//batch_size + 1} successful: saved {batch_count} posts")
-            
-        except Exception as e:
-            db.rollback()
-            print(f"❌ Error saving batch {batch_start//batch_size + 1}: {str(e)}")
-            # Continue with next batch instead of failing completely
-    
-    if created_count > 0:
+        created_count = len(posts_to_insert)
         print(f"✅ Successfully saved {created_count}/{total_posts} posts to database")
-        # Update campaign's current_step after successfully saving posts
-        try:
-            campaign = db.query(Campaign).filter(Campaign.id == campaign_id).first()
-            if campaign:
-                campaign.current_step = 4  # Move to the next step
-                db.commit()
-                print(f"✅ Updated campaign {campaign_id} current_step to 4")
-        except Exception as e:
-            print(f"❌ Error updating campaign current_step: {str(e)}")
-    else:
-        print(f"❌ Failed to save any posts to database out of {total_posts} attempted")
-    
-    return created_count
+        return created_count
+        
+    except Exception as e:
+        db.rollback()
+        print(f"❌ Error during bulk save operation: {str(e)}")
+        return 0
 
 async def generate_posts_from_theme(theme: DBTheme, db: Session) -> int:
     print(f"🚀 Starting post generation for theme ID: {theme.id}")

@@ -1,6 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi import status
-
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import Campaign
@@ -45,3 +43,17 @@ def delete_campaign(campaign_id: int, db: Session = Depends(get_db)):
     db.delete(campaign)
     db.commit()
     return None
+
+@router.post("/upload")
+async def upload_file(file: UploadFile = File(...)):
+    """Extract text from uploaded file"""
+    try:
+        from services.campaign_service import process_file_content
+        text = await process_file_content(file)
+        return {
+            "text": text,
+            "filename": file.filename,
+            "message": "Text extraction completed successfully"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
