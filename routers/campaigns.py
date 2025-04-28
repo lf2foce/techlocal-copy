@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, s
 from sqlalchemy.orm import Session
 from database.db import get_db
 from database.models import Campaign
-from schemas import CampaignCreate, CampaignResponse
+from schemas import CampaignCreate, CampaignResponse, CampaignData
 from typing import List
 
 
@@ -57,3 +57,4 @@ async def upload_file(file: UploadFile = File(...)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+

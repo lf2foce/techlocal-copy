@@ -36,7 +36,7 @@ class Campaign(Base):
     is_active = Column(Boolean, default=True)
 
     current_step = Column(Integer, nullable=False, server_default="4")
-    
+    campaign_data = Column(Text, nullable=True)
 
     themes = relationship("Theme", back_populates="campaign")
     posts = relationship("ContentPost", back_populates="campaign")
@@ -48,6 +48,7 @@ class Theme(Base):
     campaign_id = Column(Integer, ForeignKey("campaigns.id"), nullable=False)
     title = Column(String, nullable=False)
     story = Column(Text)
+    content_plan = Column(JSONB, nullable=True)
     is_selected = Column(Boolean, default=False)
     status = Column(Enum(ThemeStatus), default=ThemeStatus.pending)
     post_status = Column(String, nullable=True)
@@ -64,7 +65,6 @@ class ContentPost(Base):
     theme_id = Column(Integer, ForeignKey("themes.id"), nullable=False)
     title = Column(String)
     content = Column(Text)
-    # status = Column(Enum(PostStatus, name="post_status", create_constraint=False, native_enum=False), default=PostStatus.approved)
     status = Column(String, default="approved")
 
     created_at = Column(DateTime, default=datetime.now)
