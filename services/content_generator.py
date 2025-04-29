@@ -2,7 +2,7 @@ import random
 from sqlalchemy.orm import Session
 from database.models import ContentPost, Campaign, Theme as DBTheme
 from datetime import datetime, timedelta
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pydantic import BaseModel, ValidationError
 from google import genai
 from google.genai import types
@@ -46,41 +46,50 @@ load_dotenv()
 class ThemeGenerate(BaseModel):
     themes: List[ThemeBase]
 
-def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str):
+def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str, post_num: int):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
+    system_prompt=f""" Bạn là chuyên gia về marketing và SEO. Bạn sẽ được cung cấp thông tin về chiến dịch và các thông tin khác để tạo ra các nội dung cho chiến dịch.
+        - Thông tin chiến dịch:
+            - Tiêu đề chiến dịch: {campaign_title}
+            - Đối tượng khách hàng: {target_customer}
+            - Mục tiêu chiến dịch: {insight}
+        - Các thông tin khác:
+            - Mô tả chiến dịch: {description}
+            - Đối tượng khách hàng: {target_customer}
+            - Số bài viết cần tạo theo kế hoạch: {post_num}
+
+        Tạo 3 chiến lược nội dung , mỗi thương hiệu phải có title và story khác nhau, content_plan (nội dung kế hoạch) sẽ dựa trên câu chuyện đó  với các thông tin sau: \n\n"
+            - Insight khách hàng: {insight}\n"
+            - Đối tượng mục tiêu: {target_customer}\n\n"
+            
+            Yêu cầu cho mỗi thương hiệu:\n"
+            - `title`: Tên ý tưởng| thương hiệu|pages|chủ đề.\n"
+            - `story`: Câu chuyện thương hiệu (tối đa 200 ký tự) | Lời hứa thương hiệu | Phong cách nội dung.\n"
+            - `content_plan`: Một kế hoạch nội dung gồm {post_num} mục, mỗi mục bao gồm:\n"
+              - `goal`: Mục tiêu nội dung\n"
+              - `title`: Tiêu đề bài viết\n"
+              - `format`: Định dạng nội dung (ví dụ: bài viết, infographic, video, v.v.)\n"
+              - `content_idea`: Ý tưởng nội dung ngắn gọn\n\n"
+            Lưu ý:\n"
+            - Mỗi mục phải có đầy đủ các trường thông tin trên.\n"
+            - Các trường phải xuất ra đúng cấu trúc JSON.\n"
+            - Viết toàn bộ nội dung bằng tiếng Việt.\n"
+        """
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
         model='gemini-2.0-flash',  # Updated to newer model version
-        contents=f"""
-        f"Tạo 3 thương hiệu cho pages với các thông tin sau: \n\n"
-            f"- Insight khách hàng: {insight}\n"
-            f"- Đối tượng mục tiêu: {target_customer}\n\n"
-            f"Yêu cầu cho mỗi thương hiệu:\n"
-            f"- `title`: Tên thương hiệu.\n"
-            f"- `story`: Câu chuyện thương hiệu (không quá dài).\n"
-            f"- `content_plan`: Một kế hoạch nội dung gồm 5 mục, mỗi mục bao gồm:\n"
-            f"  - `goal`: Mục tiêu nội dung\n"
-            f"  - `title`: Tiêu đề bài viết\n"
-            f"  - `format`: Định dạng nội dung (ví dụ: bài viết, infographic, video, v.v.)\n"
-            f"  - `content_idea`: Ý tưởng nội dung ngắn gọn\n\n"
-            f"Lưu ý:\n"
-            f"- Mỗi mục phải có đầy đủ các trường thông tin trên.\n"
-            f"- Các trường phải xuất ra đúng cấu trúc JSON.\n"
-            f"- Viết toàn bộ nội dung bằng tiếng Việt.\n"
-        """,
+        contents=f"Viết cho tôi nội dung cho 3 thương hiệu chiến lược dựa trên {description}",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=ThemeGenerate,
-            system_instruction=types.Part.from_text(text=f"{description}, kết quả trả ra bằng tiếng việt"),
+            system_instruction=types.Part.from_text(text=system_prompt),
         ),
     )
     
     # Extract the response
-    print("Generated 5 themes with content plans based on user prompt.")
-    
-    # Extract the response
-    print("Generated 5 themes based on user prompt.")
+    print("Generated 3 themes with content plans based on user prompt.")
+
     content = json.loads(response.text)
     
     # Validate and parse the response using Pydantic
@@ -184,9 +193,39 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
             "post_metadata": None
         }
 
-async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, Any]):
-    # Increase concurrency with higher semaphore limit for parallel processing
-    semaphore = asyncio.Semaphore(10)  # Increased from 5 to 10 for more concurrent tasks
+async def create_default_content_plan(theme_title: str, theme_story: str, num_posts=5) -> Dict[str, Any]:
+    """Tạo content plan mặc định khi không có plan được cung cấp"""
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    prompt = f"""
+    Tạo kế hoạch nội dung cho chủ đề '{theme_title}' với {num_posts} bài viết.
+    Mô tả chủ đề: {theme_story}
+    Mỗi bài viết cần có:
+    - goal: Mục tiêu nội dung
+    - title: Tiêu đề bài viết 
+    - format: Định dạng (bài viết/infographic/video)
+    - content_idea: Ý tưởng nội dung ngắn
+    """
+    
+    response = client.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=prompt,
+        config={
+            'response_mime_type': 'application/json',
+            'response_schema': Plan
+        }
+    )
+    
+    content = json.loads(response.text)
+    return content.model_dump()
+
+async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Optional[Dict[str, Any]] = None):
+    # Increase concurrency with higher semaphore limit
+    semaphore = asyncio.Semaphore(10)
+    
+    # Nếu không có content_plan, tạo plan mặc định
+    if content_plan is None:
+        content_plan = await create_default_content_plan(theme_title, theme_story)
     
     # Convert content_plan from string to dict if needed
     if isinstance(content_plan, str):

@@ -21,7 +21,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
     db.query(Theme).filter(Theme.campaign_id == campaign_id).delete()
 
     themes_data = generate_theme_title_and_story(
-        campaign.title, campaign.insight, campaign.description, campaign.target_customer
+        campaign.title, campaign.insight, campaign.description, campaign.target_customer, campaign.repeat_every_days
     )
 
     new_themes = []
