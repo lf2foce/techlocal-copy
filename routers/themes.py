@@ -31,7 +31,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
         title = theme_data["title"]
         story = theme_data["story"]
         content_plan = theme_data["content_plan"]
-
+        print(content_plan)
         theme = Theme(
             campaign_id=campaign_id,
             title=title,

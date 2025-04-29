@@ -51,7 +51,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     
     system_prompt=f""" Tạo 3 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
     Mỗi thương hiệu phải có title và story khác nhau, và content_plan theo chiến lược từ {description} 
-    content_plan nội dung kế hoạch cho {post_num} nội dung. 
+    content_plan nội dung kế hoạch cho cần số lượng {post_num} nội dung. 
     Viết bằng tiếng việt
         """
     # Generate response using Gemini API (synchronous version)
