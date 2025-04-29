@@ -106,6 +106,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
         for theme in themes_data.themes
     ]
 
+from schemas import PostMetadata
 class BlogPost(BaseModel):
     title: str
     content: str
@@ -165,15 +166,22 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         # Extract and parse the response
         content = json.loads(response.text)
         blog_post = BlogPost(**content)
-        
-      
+       
+        # Tạo metadata cho bài viết
+        post_metadata = PostMetadata(
+            content_type=content_plan.get('format'),
+            content_ideas=content_plan.get('content_idea'),
+            goals=content_plan.get('goal'),
+            content_length=len(blog_post.content)
+        )
         
         elapsed_time = time.time() - start_time
         print(f"✅ Completed post in {elapsed_time:.2f} seconds. Title: '{post_title}'")
         
         return {
-            "title": content_plan.get('title'),
-            "content": blog_post.content
+            "title": blog_post.title,
+            "content": blog_post.content,
+            "post_metadata": post_metadata.model_dump()
         }
     except Exception as e:
         # Log the error but don't raise it to allow other posts to be generated
@@ -181,10 +189,11 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         print(f"❌ Error generating post after {elapsed_time:.2f} seconds: {str(e)}")
         return {
             "title": content_plan.get('title'),
-            "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated for campaign '{campaign_title}'."
+            "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated for campaign '{campaign_title}'.",
+            "post_metadata": None
         }
 
-async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, List[str]] | str):
+async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, Any]):
     # Increase concurrency with higher semaphore limit for parallel processing
     semaphore = asyncio.Semaphore(10)  # Increased from 5 to 10 for more concurrent tasks
     
@@ -213,15 +222,10 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
                     theme_title,
                     theme_story,
                     campaign_title,
-                    {
-                        'title': item['title'],
-                        'goal': item['goal'],
-                        'format': item['format'],
-                        'content_idea': item['content_idea']
-                    }
+                    item
                 )
             except Exception as e:
-                print(f"Error generating post with title '{content_plan['titles']}': {str(e)}")
+                print(f"Lỗi khi tạo bài viết với tiêu đề '{item['title']}': {str(e)}")
                 return None
     
     # Create all tasks at once for maximum concurrency
@@ -237,6 +241,7 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
     
     return valid_results
 
+#func test
 def save_posts_to_db(post_contents, campaign_id, theme_id, db):
     """Create posts in the database using optimized bulk insert."""
     if not post_contents:
@@ -256,7 +261,8 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
             content=post.get("content", ""),
             status="approved",
             created_at=now + timedelta(microseconds=i),
-            image_status="pending"
+            image_status="pending",
+            post_metadata=post.get("post_metadata")
         )
         for i, post in enumerate(post_contents)
         if isinstance(post, dict) and post.get("content")
@@ -360,6 +366,7 @@ async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: 
                     theme_id=theme.id,
                     title=post_data["title"],
                     content=post_data["content"],
+                    post_metadata=post_data.get("post_metadata", ""),
                     image_status="pending"
                 )
                 db.add(post)
