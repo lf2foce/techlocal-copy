@@ -49,32 +49,10 @@ class ThemeGenerate(BaseModel):
 def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str, post_num: int):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    system_prompt=f""" Bạn là chuyên gia về marketing và SEO. Bạn sẽ được cung cấp thông tin về chiến dịch và các thông tin khác để tạo ra các nội dung cho chiến dịch.
-        - Thông tin chiến dịch:
-            - Tiêu đề chiến dịch: {campaign_title}
-            - Đối tượng khách hàng: {target_customer}
-            - Mục tiêu chiến dịch: {insight}
-        - Các thông tin khác:
-            - Mô tả chiến dịch: {description}
-            - Đối tượng khách hàng: {target_customer}
-            - Số bài viết cần tạo theo kế hoạch: {post_num}
-
-        Tạo 3 chiến lược nội dung , mỗi thương hiệu phải có title và story khác nhau, content_plan (nội dung kế hoạch) sẽ dựa trên câu chuyện đó  với các thông tin sau: \n\n"
-            - Insight khách hàng: {insight}\n"
-            - Đối tượng mục tiêu: {target_customer}\n\n"
-            
-            Yêu cầu cho mỗi thương hiệu:\n"
-            - `title`: Tên ý tưởng| thương hiệu|pages|chủ đề.\n"
-            - `story`: Câu chuyện thương hiệu (tối đa 200 ký tự) | Lời hứa thương hiệu | Phong cách nội dung.\n"
-            - `content_plan`: Một kế hoạch nội dung gồm {post_num} mục, mỗi mục bao gồm:\n"
-              - `goal`: Mục tiêu nội dung\n"
-              - `title`: Tiêu đề bài viết\n"
-              - `format`: Định dạng nội dung (ví dụ: bài viết, infographic, video, v.v.)\n"
-              - `content_idea`: Ý tưởng nội dung ngắn gọn\n\n"
-            Lưu ý:\n"
-            - Mỗi mục phải có đầy đủ các trường thông tin trên.\n"
-            - Các trường phải xuất ra đúng cấu trúc JSON.\n"
-            - Viết toàn bộ nội dung bằng tiếng Việt.\n"
+    system_prompt=f""" Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
+    Mỗi thương hiệu phải có title và story khác nhau, và content_plan theo chiến lược từ {description} 
+    content_plan nội dung kế hoạch cho {post_num} nội dung. 
+    Viết bằng tiếng việt
         """
     # Generate response using Gemini API (synchronous version)
     response = client.models.generate_content(
@@ -123,6 +101,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         goal = content_plan.get('goal')
         format_type = content_plan.get('format')
         content_idea = content_plan.get('content_idea')
+        print(content_idea)
         post_title = content_plan.get('title')
         
         prompt = (
