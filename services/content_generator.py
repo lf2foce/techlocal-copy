@@ -49,7 +49,7 @@ class ThemeGenerate(BaseModel):
 def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str, post_num: int):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    system_prompt=f""" Tạo 5 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
+    system_prompt=f""" Tạo 3 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
     Mỗi thương hiệu phải có title và story khác nhau, và content_plan theo chiến lược từ {description} 
     content_plan nội dung kế hoạch cho {post_num} nội dung. 
     Viết bằng tiếng việt

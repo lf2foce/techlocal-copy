@@ -77,22 +77,8 @@ class ThemeResponse(ThemeBase):
     status: str
     post_status: Optional[str] = None
     created_at: Optional[datetime] = None
-
-    @field_validator('content_plan', mode='before')
-    @classmethod
-    def parse_content_plan(cls, v):
-        if isinstance(v, str):
-            try:
-                return json.loads(v)
-            except json.JSONDecodeError:
-                return None
-        return v
-
     class Config:
         from_attributes = True
-        json_encoders = {
-            Dict: lambda v: v
-        }
 
 class PostMetadata(BaseModel):
     content_type: Optional[str] = None
