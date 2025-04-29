@@ -204,10 +204,12 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
     
     # Nếu không có content_plan, tạo plan mặc định
     if content_plan is None:
+        print(6, 'content plan không có')
         content_plan = await create_default_content_plan(theme_title, theme_story)
     
     # Convert content_plan from string to dict if needed
     if isinstance(content_plan, str):
+        print(7, 'content plan là string')
         try:
             content_plan = json.loads(content_plan)
         except json.JSONDecodeError:
