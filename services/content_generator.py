@@ -51,7 +51,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
     
     system_prompt=f""" Tạo 3 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
     Mỗi thương hiệu phải có title và story khác nhau, và content_plan theo chiến lược từ {description} 
-    content_plan nội dung kế hoạch cho cần số lượng {post_num} nội dung. 
+    content_plan nội dung kế hoạch cho {post_num} nội dung. 
     Viết bằng tiếng việt
         """
     # Generate response using Gemini API (synchronous version)
@@ -199,35 +199,37 @@ async def create_default_content_plan(theme_title: str, theme_story: str, num_po
     return content.model_dump()
 
 async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Optional[Dict[str, Any]] = None):
-    # Increase concurrency with higher semaphore limit
-    semaphore = asyncio.Semaphore(10)
+    # Create a semaphore to limit concurrent API calls
+    semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent API calls
     
-    # Nếu không có content_plan, tạo plan mặc định
+    # Ensure content_plan is properly formatted
     if content_plan is None:
-        print(6, 'content plan không có')
+        print("⚠️ No content plan provided, creating default")
         content_plan = await create_default_content_plan(theme_title, theme_story)
     
-    # Convert content_plan from string to dict if needed
+    # Handle string content_plan
     if isinstance(content_plan, str):
-        print(7, 'content plan là string')
         try:
             content_plan = json.loads(content_plan)
         except json.JSONDecodeError:
             print("❌ Could not parse content_plan JSON string")
             return []
     
-    # Đảm bảo content_plan có thuộc tính items
+    # Validate content_plan structure
     if not isinstance(content_plan, dict) or 'items' not in content_plan:
-        print("❌ Content plan không hợp lệ hoặc thiếu trường items")
+        print("❌ Invalid content plan format or missing 'items' field")
         return []
     
     content_items = content_plan['items']
-    if not isinstance(content_items, list):
-        print("❌ Content items phải là một danh sách")
+    if not isinstance(content_items, list) or not content_items:
+        print("❌ Content items must be a non-empty list")
         return []
     
-    async def bounded_generate(item):
+    # Define the bounded task that will respect the semaphore
+    async def bounded_task(item):
+        # This critical section ensures only 10 tasks can execute this block concurrently
         async with semaphore:
+            print(f"🔄 Starting generation for item: '{item.get('title')}'")
             try:
                 return await generate_post_content(
                     theme_title,
@@ -236,21 +238,24 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
                     item
                 )
             except Exception as e:
-                print(f"Lỗi khi tạo bài viết với tiêu đề '{item['title']}': {str(e)}")
+                print(f"❌ Error generating post for '{item.get('title')}': {str(e)}")
                 return None
     
-    # Create all tasks at once for maximum concurrency
-    all_tasks = [bounded_generate(item) for item in content_items]
+    # Create tasks for all content items
+    tasks = [bounded_task(item) for item in content_items]
     
-    # Run all tasks concurrently
-    print(f"🚀 Generating {len(content_items)} posts concurrently...")
-    results = await asyncio.gather(*all_tasks)
+    # Execute all tasks concurrently with gather, this is the correct way
+    print(f"🚀 Generating {len(tasks)} posts concurrently with max {semaphore._value} at a time")
+    start_time = time.time()
+    results = await asyncio.gather(*tasks)
+    elapsed = time.time() - start_time
     
-    # Filter out None results from failed generations
+    # Filter out failed generations and log statistics
     valid_results = [r for r in results if r is not None]
-    print(f"✅ Successfully generated {len(valid_results)} out of {len(content_items)} posts")
+    print(f"✅ Generated {len(valid_results)}/{len(tasks)} posts in {elapsed:.2f}s")
     
     return valid_results
+
 
 #func test
 def save_posts_to_db(post_contents, campaign_id, theme_id, db):
@@ -300,101 +305,93 @@ def save_posts_to_db(post_contents, campaign_id, theme_id, db):
         print(f"❌ Error during bulk save operation: {str(e)}")
         return 0
 
-async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: Dict[str, Any] = None) -> int:
-    print(f"🚀 Bắt đầu tạo bài đăng cho chủ đề ID: {theme.id}")
-    print('4')
-    campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
-    if not campaign:
-        print(f"❌ Không tìm thấy chiến dịch cho chủ đề ID: {theme.id}")
-        return 0
-
-    try:
-        # Enrich theme story with campaign data for better context
-        enriched_story = theme.story
-        print(5, type(enriched_story))
+async def generate_posts_from_theme(theme: DBTheme, db_factory, campaign_data: Dict[str, Any] = None) -> int:
+    """Generate posts for a theme using concurrent processing with separate DB sessions"""
+    print(f"🚀 Starting post generation for theme ID: {theme.id}")
+    
+    # Use a separate DB session for the main function
+    with db_factory() as db:
+        campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
+        if not campaign:
+            print(f"❌ Campaign not found for theme ID: {theme.id}")
+            return 0
         
-        # Chuyển đổi campaign_data từ chuỗi sang từ điển nếu cần
+        # Create enriched story with campaign data
+        enriched_story = theme.story
+        
+        # Parse campaign_data if needed
         if isinstance(campaign_data, str):
             try:
                 campaign_data = json.loads(campaign_data)
             except json.JSONDecodeError:
-                print(f"❌ Không thể phân tích cú pháp campaign_data")
+                print("❌ Failed to parse campaign_data")
                 campaign_data = {}
         
+        # Enrich the theme story with campaign context
         if campaign_data:
-            print(5, type(campaign_data))
             brand_voice = campaign_data.get('brandVoice', '')
             key_messages = campaign_data.get('keyMessages', [])
             content_guidelines = campaign_data.get('contentGuidelines', '')
             
-            # Append campaign data to theme story for richer context
             enriched_story = f"{theme.story}\n\nBrand Voice: {brand_voice}\n"
             if key_messages:
                 enriched_story += f"Key Messages:\n" + "\n".join([f"- {msg}" for msg in key_messages]) + "\n"
             if content_guidelines:
                 enriched_story += f"\nContent Guidelines:\n{content_guidelines}"
         
-        # Xử lý content_plan
+        # Process content_plan
         content_plan = theme.content_plan
         if isinstance(content_plan, str):
             try:
                 content_plan = json.loads(content_plan)
             except json.JSONDecodeError:
-                print(f"❌ Không thể parse content_plan JSON cho theme {theme.id}")
+                print(f"❌ Failed to parse content_plan JSON for theme {theme.id}")
                 content_plan = None
-
-        # Tạo content plan mặc định nếu không có
-        if not content_plan or not isinstance(content_plan, dict) or 'items' not in content_plan:
-            print(f"⚠️ Tạo content plan mặc định cho theme {theme.id}")
-            content_plan = {
-                "items": [{
-                    "goal": f"Tạo nội dung cho {theme.title}",
-                    "title": f"Bài viết {i+1} về {theme.title}",
-                    "format": "post",
-                    "content_idea": f"Nội dung về {theme.title}"
-                } for i in range(5)]
-            }
-
-        items = content_plan['items']
-        if not isinstance(items, list) or len(items) == 0:
-            print(f"❌ Content plan không chứa mục nào cho chủ đề ID: {theme.id}")
-            return 0
-
-        print(f"📊 Tạo {len(items)} bài đăng cho chiến dịch: '{campaign.title}'")
-
-        # Tạo bài đăng đồng thời bằng cách sử dụng toàn bộ content_plan
-        posts = await process_with_semaphore(
-            theme.title,
-            enriched_story,
-            campaign.title,
-            content_plan
-        )
-        
-        if not posts:
-            return 0
-            
-        # Lưu bài đăng theo lô
+    
+    # Generate posts concurrently - note we're outside the DB session now
+    posts = await process_with_semaphore(
+        theme.title,
+        enriched_story,
+        campaign.title,
+        content_plan
+    )
+    
+    if not posts:
+        print("❌ No posts were generated")
+        return 0
+    
+    # Use a separate DB session for saving results
+    with db_factory() as db:
+        # Save posts in batches
+        total_saved = 0
         batch_size = 10
         for i in range(0, len(posts), batch_size):
             batch = posts[i:i + batch_size]
+            batch_posts = []
+            
             for post_data in batch:
                 post = ContentPost(
-                    campaign_id=campaign.id,
+                    campaign_id=theme.campaign_id,
                     theme_id=theme.id,
                     title=post_data["title"],
                     content=post_data["content"],
                     post_metadata=post_data.get("post_metadata", ""),
+                    status="approved",
                     image_status="pending"
                 )
-                db.add(post)
-            db.commit()
-            print(f"✅ Đã lưu lô {i//batch_size + 1} trong số {(len(posts) + batch_size - 1)//batch_size}")
+                batch_posts.append(post)
+            
+            try:
+                # Use bulk_save_objects for efficient batch saving
+                db.bulk_save_objects(batch_posts)
+                db.commit()
+                total_saved += len(batch_posts)
+                print(f"✅ Saved batch {i//batch_size + 1}/{(len(posts) + batch_size - 1)//batch_size} ({len(batch_posts)} posts)")
+            except Exception as e:
+                db.rollback()
+                print(f"❌ Error saving batch: {str(e)}")
         
-        return len(posts)
-        
-    except Exception as e:
-        print(f"Lỗi khi tạo bài đăng: {str(e)}")
-        return 0
+        return total_saved
 
 
 def approve_post(post_id: int, db: Session) -> ContentPost:

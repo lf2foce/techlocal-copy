@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 import time  # Add this import
-from database.db import get_db
+from database.db import get_db, SessionLocal
 from database.models import Campaign, Theme, ThemeStatus
 from schemas import ThemeResponse
 from typing import List
@@ -72,79 +72,120 @@ async def check_theme_status(theme_id: int, db: Session = Depends(get_db)):
     # await send_telegram_message(f"🔍 Status check for theme {theme_id}: {theme.post_status}")
     return theme
 
-async def generate_posts_background(theme_id: int, db: Session):
-    from database.db import SessionLocal
-    
-    db = SessionLocal()
-    try:
+# Update the background task to use a factory for DB sessions
+async def generate_posts_background(theme_id: int, db_factory):
+    """Background task to generate posts with proper DB session management"""
+    # Create a fresh DB session
+    with db_factory() as db:
         theme = db.query(Theme).filter(Theme.id == theme_id).first()
         if not theme:
-            await send_telegram_message(f"⚠️ Theme {theme_id} not found in background task")
+            await send_telegram_message(f"⚠️ Theme {theme_id} not found")
             return
             
-        # Add debug logging
         print(f"DEBUG: Starting post generation for theme {theme_id}")
-        print(f"DEBUG: Theme data - Title: {theme.title}, Story: {theme.story}")
-        print(f"DEBUG: Content plan type: {type(theme.content_plan)}, Content: {theme.content_plan}")
-
-        # Fetch campaign data for more context
+        
+        # Set status to pending
+        theme.post_status = "pending"
+        db.commit()
+        
+        # Fetch campaign data
         campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
         if not campaign:
             await send_telegram_message(f"⚠️ Campaign not found for theme {theme_id}")
             return
             
-        # Set post_status to pending before generation starts
-        theme.post_status = "pending"
-        db.commit()
-        
-        # Kiểm tra campaign_data trước khi sử dụng
         campaign_data = campaign.campaign_data if campaign.campaign_data else {}
-        print(f"DEBUG: Campaign data: {campaign_data}")
+    
+    try:
+        # Call generate_posts_from_theme with the db_factory
+        generated_count = await generate_posts_from_theme(theme, db_factory, campaign_data=campaign_data)
         
-        # Now we can properly await the async function with complete campaign data
-        generated_count = await generate_posts_from_theme(theme, db, campaign_data=campaign_data)
+        # Update theme status with a fresh session
+        with db_factory() as db:
+            theme = db.query(Theme).filter(Theme.id == theme_id).first()
+            if theme:
+                theme.post_status = "ready"
+                db.commit()
         
-        print(f"DEBUG: Generated {generated_count} posts")
-        # Update theme post_status to ready after successful generation
-        theme.post_status = "ready"
-        db.commit()
+        await send_telegram_message(f"✨ Successfully generated {generated_count} posts for theme {theme_id}")
+    except Exception as e:
+        print(f"DEBUG: Error generating posts: {str(e)}")
+        # Update status to error with a fresh session
+        with db_factory() as db:
+            theme = db.query(Theme).filter(Theme.id == theme_id).first()
+            if theme:
+                theme.post_status = "error"
+                db.commit()
         
-        await send_telegram_message(f"✨ Successfully generated {generated_count} posts from theme {theme.id}")
-    except Exception as post_gen_error:
-        if theme:
-            theme.post_status = "error"
-            db.commit()
-        print(f"DEBUG: Error generating posts: {str(post_gen_error)}")
-        await send_telegram_message(f"⚠️ Warning: Posts were not generated due to an error: {str(post_gen_error)}")
-    finally:
-        db.close()
+        await send_telegram_message(f"⚠️ Posts generation failed: {str(e)}")
 
+
+# @router.post("/{theme_id}/select", response_model=ThemeResponse)
+# async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+#     theme = db.query(Theme).filter(Theme.id == theme_id).first()
+#     if not theme:
+#         error_msg = f"Theme {theme_id} not found"
+#         # await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+#         raise HTTPException(status_code=404, detail=error_msg)
+
+#     # # Check if the theme is already in a final state
+#     # if theme.status not in [ThemeStatus.pending]:
+#     #     error_msg = f"Theme {theme_id} is already finalized as {theme.status.value}. You cannot select it again."
+#     #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+#     #     raise HTTPException(status_code=400, detail=error_msg)
+
+#     # # Check if any theme in this campaign is already selected
+#     # existing_selected = db.query(Theme).filter(
+#     #     Theme.campaign_id == theme.campaign_id,
+#     #     Theme.is_selected
+#     # ).first()
+#     # if existing_selected:
+#     #     error_msg = f"Campaign already has theme {existing_selected.id} selected. Only one theme can be selected per campaign."
+#     #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+#     #     raise HTTPException(status_code=400, detail=error_msg)
+
+#     try:
+#         # Deselect all other themes in the same campaign
+#         db.query(Theme).filter(
+#             Theme.campaign_id == theme.campaign_id,
+#             Theme.id != theme.id
+#         ).update({"is_selected": False, "status": ThemeStatus.discarded})
+
+#         theme.is_selected = True
+#         theme.status = ThemeStatus.selected
+        
+#         # Update campaign step to indicate theme selection is complete
+#         campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
+#         campaign.current_step = 3
+#         db.commit()
+        
+#         # Send success message with theme details
+#         # success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Posts will be generated in background..."
+#         # await send_telegram_message(success_msg)
+
+#         # Schedule post generation as a background task
+#         background_tasks.add_task(generate_posts_background, theme.id, db)
+
+#         return theme
+#     except Exception as e:
+#         db.rollback()
+#         error_msg = f"An error occurred while processing theme {theme_id}: {str(e)}"
+#         await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
+#         raise HTTPException(status_code=500, detail=error_msg)
+
+# Update the route to use a DB factory
 @router.post("/{theme_id}/select", response_model=ThemeResponse)
 async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
+    # Create a db_factory that returns a fresh session each time
+    def db_factory():
+        return SessionLocal()
+    
     theme = db.query(Theme).filter(Theme.id == theme_id).first()
     if not theme:
-        error_msg = f"Theme {theme_id} not found"
-        # await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
-        raise HTTPException(status_code=404, detail=error_msg)
-
-    # # Check if the theme is already in a final state
-    # if theme.status not in [ThemeStatus.pending]:
-    #     error_msg = f"Theme {theme_id} is already finalized as {theme.status.value}. You cannot select it again."
-    #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
-    #     raise HTTPException(status_code=400, detail=error_msg)
-
-    # # Check if any theme in this campaign is already selected
-    # existing_selected = db.query(Theme).filter(
-    #     Theme.campaign_id == theme.campaign_id,
-    #     Theme.is_selected
-    # ).first()
-    # if existing_selected:
-    #     error_msg = f"Campaign already has theme {existing_selected.id} selected. Only one theme can be selected per campaign."
-    #     await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
-    #     raise HTTPException(status_code=400, detail=error_msg)
+        raise HTTPException(status_code=404, detail=f"Theme {theme_id} not found")
 
     try:
-        # Deselect all other themes in the same campaign
+        # Update theme and campaign status
         db.query(Theme).filter(
             Theme.campaign_id == theme.campaign_id,
             Theme.id != theme.id
@@ -153,21 +194,16 @@ async def select_theme(theme_id: int, background_tasks: BackgroundTasks, db: Ses
         theme.is_selected = True
         theme.status = ThemeStatus.selected
         
-        # Update campaign step to indicate theme selection is complete
         campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
         campaign.current_step = 3
         db.commit()
         
-        # Send success message with theme details
-        # success_msg = f"✅ Theme selected (ID: {theme.id}): {theme.title}\n📝 Posts will be generated in background..."
-        # await send_telegram_message(success_msg)
-
-        # Schedule post generation as a background task
-        background_tasks.add_task(generate_posts_background, theme.id, db)
+        # Add the background task with the db_factory
+        background_tasks.add_task(generate_posts_background, theme.id, db_factory)
 
         return theme
     except Exception as e:
         db.rollback()
-        error_msg = f"An error occurred while processing theme {theme_id}: {str(e)}"
+        error_msg = f"An error occurred: {str(e)}"
         await send_telegram_message(f"❌ Failed to select theme: {error_msg}")
         raise HTTPException(status_code=500, detail=error_msg)
