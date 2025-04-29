@@ -92,16 +92,7 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
         {
             "title": theme.title,
             "story": theme.story,
-            "content_plan": {
-                "items": [
-                    {
-                        "goal": item.goal,
-                        "title": item.title,
-                        "format": item.format,
-                        "content_idea": item.content_idea
-                    } for item in theme.content_plan
-                ]
-            }
+            "content_plan": theme.content_plan.model_dump()
         }
         for theme in themes_data.themes
     ]
