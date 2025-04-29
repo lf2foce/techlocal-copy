@@ -94,27 +94,7 @@ async def generate_posts_background(theme_id: int, db: Session):
         
         # Kiểm tra campaign_data trước khi sử dụng
         campaign_data = campaign.campaign_data if campaign.campaign_data else {}
-        
-        # Kiểm tra và xử lý content_plan nếu nó là None hoặc không có cấu trúc mong đợi
-        print('1')
-        content_plan = theme.content_plan or '{}'
-        print('2', content_plan)
-        print(type(content_plan))
-        
-        # Chuyển đổi chuỗi JSON thành từ điển
-        if isinstance(content_plan, str):
-            try:
-                content_plan = json.loads(content_plan)
-            except json.JSONDecodeError:
-                await send_telegram_message(f"⚠️ Không thể phân tích chuỗi JSON của content_plan cho theme {theme_id}")
-                return
-        
-        titles = content_plan.get('titles', [])
-        print(titles)
-        if not titles:
-            await send_telegram_message(f"⚠️ Không tìm thấy tiêu đề trong content_plan cho theme {theme_id}")
-            return
-        print('3')
+        print(3, type(campaign_data))
         # Now we can properly await the async function with complete campaign data
         generated_count = await generate_posts_from_theme(theme, db, campaign_data=campaign_data)
         

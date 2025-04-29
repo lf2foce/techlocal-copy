@@ -75,6 +75,7 @@ class ContentPost(Base):
     image_url = Column(String, nullable=True)
     images = Column(JSONB)
     video_url = Column(String, nullable=True)
+    post_metadata = Column(JSONB, nullable=True)
 
     campaign = relationship("Campaign", back_populates="posts")
     theme = relationship("Theme", back_populates="posts")

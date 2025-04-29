@@ -56,11 +56,14 @@ class CampaignResponse(CampaignBase):
         from_attributes = True
         use_enum_values = True
 
+class ContentItem(BaseModel):
+    goal: str
+    title: str
+    format: str
+    content_idea: str
+
 class Plan(BaseModel):
-    goals: List[str]
-    titles: List[str]
-    formats: List[str]
-    content_ideas: List[str]
+    items: List[ContentItem]
 
 class ThemeBase(BaseModel):
     title: str
@@ -91,6 +94,12 @@ class ThemeResponse(ThemeBase):
             Dict: lambda v: v
         }
 
+class PostMetadata(BaseModel):
+    content_type: Optional[str] = None
+    content_ideas: Optional[str] = None
+    goals: Optional[str] = None
+    content_length: Optional[int] = None
+
 class ContentPostResponse(BaseModel):
     id: int
     campaign_id: int
@@ -104,6 +113,7 @@ class ContentPostResponse(BaseModel):
     feedback: Optional[str]
     image_url: Optional[str]
     video_url: Optional[str]
+    post_metadata: Optional[PostMetadata] = None
 
     class Config:
         from_attributes = True

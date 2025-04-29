@@ -59,13 +59,13 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
             f"Yêu cầu cho mỗi thương hiệu:\n"
             f"- `title`: Tên thương hiệu.\n"
             f"- `story`: Câu chuyện thương hiệu (không quá dài).\n"
-            f"- `content_plan`: Một kế hoạch nội dung gồm 4 danh sách:\n"
-            f"  - `goals`: 5 mục tiêu nội dung.\n"
-            f"  - `titles`: 5 tiêu đề bài viết.\n"
-            f"  - `formats`: 5 định dạng nội dung (ví dụ: bài viết, infographic, video, v.v.).\n"
-            f"  - `content_ideas`: 5 ý tưởng nội dung ngắn gọn.\n\n"
+            f"- `content_plan`: Một kế hoạch nội dung gồm 5 mục, mỗi mục bao gồm:\n"
+            f"  - `goal`: Mục tiêu nội dung\n"
+            f"  - `title`: Tiêu đề bài viết\n"
+            f"  - `format`: Định dạng nội dung (ví dụ: bài viết, infographic, video, v.v.)\n"
+            f"  - `content_idea`: Ý tưởng nội dung ngắn gọn\n\n"
             f"Lưu ý:\n"
-            f"- Mỗi danh sách (`goals`, `titles`, `formats`, `content_ideas`) phải có đúng **5 phần tử**, và phải tương ứng theo thứ tự.\n"
+            f"- Mỗi mục phải có đầy đủ các trường thông tin trên.\n"
             f"- Các trường phải xuất ra đúng cấu trúc JSON.\n"
             f"- Viết toàn bộ nội dung bằng tiếng Việt.\n"
         """,
@@ -92,7 +92,16 @@ def generate_theme_title_and_story(campaign_title: str, insight: str, descriptio
         {
             "title": theme.title,
             "story": theme.story,
-            "content_plan": theme.content_plan.model_dump()  # Return dict for database
+            "content_plan": {
+                "items": [
+                    {
+                        "goal": item.goal,
+                        "title": item.title,
+                        "format": item.format,
+                        "content_idea": item.content_idea
+                    } for item in theme.content_plan
+                ]
+            }
         }
         for theme in themes_data.themes
     ]
@@ -101,20 +110,27 @@ class BlogPost(BaseModel):
     title: str
     content: str
 
-async def generate_post_content(theme_title: str, theme_story: str, campaign_title: str, post_title: str) -> Dict[str, str]:
+async def generate_post_content(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a post content using Google Gemini API asynchronously."""
-    print(f"🔄 Starting generation of post with title: '{post_title}' for theme: '{theme_title}'")
+    print(f"🔄 Starting generation of post with title: '{content_plan.get('title')}' for theme: '{theme_title}'")
     start_time = time.time()
     try:
         # Initialize the client
         client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
         
-        prompt = (
-                f"Dựa vào tên thương hiệu '{theme_title}', mô tả kênh, và yêu cầu cụ thể cho ngày hôm nay, hãy viết một bài đăng dạng kể chuyện (storytelling post) bằng tiếng Việt.\n\n"
-                f"--- TÊN THƯƠNG HIỆU ---\n{theme_title}\n\n"
-                f"--- MÔ TẢ KÊNH (Từ người dùng) ---\n{theme_story}\n--- KẾT THÚC MÔ TẢ ---\n\n"              
+        # Extract content plan metadata
+        goal = content_plan.get('goal')
+        format_type = content_plan.get('format')
+        content_idea = content_plan.get('content_idea')
+        post_title = content_plan.get('title')
         
-                f"- Mục tiêu: Kết nối sâu sắc, chia sẻ góc nhìn/kinh nghiệm/giải pháp liên quan đến insight.\n"
+        prompt = (
+                f"Dựa vào tên thương hiệu '{theme_title}', mô tả kênh, và yêu cầu cụ thể cho ngày hôm nay, hãy viết một bài đăng dạng {format_type} bằng tiếng Việt.\n\n"
+                f"--- TÊN THƯƠNG HIỆU ---\n{theme_title}\n\n"
+                f"--- MÔ TẢ KÊNH ---\n{theme_story}\n\n"
+                f"--- MỤC TIÊU BÀI VIẾT ---\n{goal}\n\n"
+                f"--- Ý TƯỞNG NỘI DUNG ---\n{content_idea}\n\n"
+                f"--- YÊU CẦU ---\n"
                 f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng. Có thể thêm hài hước/suy tư tùy chủ đề.\n"
                 f"- Cấu trúc: Mở đầu thu hút, thân phát triển ý, kết bài ý nghĩa.\n"
                 f"- Kết bài: Khuyến khích tương tác (câu hỏi mở) hoặc đưa ra lời khích lệ/hành động nhỏ.\n"
@@ -129,12 +145,8 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
             2. Creating content schedules (Vietnamese topics/quotes) aligned with the campaign strategy for a specified number of days.
             3. Writing full Vietnamese storytelling posts reflecting the campaign's tone, themes, and target audience, using the provided context for a specific day.
             4. Evaluating and improving posts based on relevance, insight, value, emotion, tone, emoji use, and call to action.
-            5. Generating EXACTLY {num_images} relevant ENGLISH image prompts AND brief VIETNAMESE explanations for them, suitable for text-to-image AI, aligned with the flow of a given post's content and the overall campaign knowledge.
-            6. Generating ENGLISH image prompts for a social media avatar and cover photo, based on a brand name and campaign concept, along with brief VIETNAMESE explanations for each.
-            CRITICAL: Always use the provided CAMPAIGN KNOWLEDGE/CONTEXT when generating content.
-            Adhere strictly to the JSON output format when requested (names, schedule, evaluation, post, image prompts+explanation, avatar/cover prompts).
             Output ONLY the valid JSON object without surrounding text or markdown.
-            Language: Primarily Vietnamese, except for the English image prompt.
+            Language: Primarily Vietnamese
         """
         
         # Generate response using Gemini API
@@ -160,7 +172,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         print(f"✅ Completed post in {elapsed_time:.2f} seconds. Title: '{post_title}'")
         
         return {
-            "title": post_title,
+            "title": content_plan.get('title'),
             "content": blog_post.content
         }
     except Exception as e:
@@ -168,37 +180,60 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         elapsed_time = time.time() - start_time
         print(f"❌ Error generating post after {elapsed_time:.2f} seconds: {str(e)}")
         return {
-            "title": post_title,
+            "title": content_plan.get('title'),
             "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated for campaign '{campaign_title}'."
         }
 
-async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: List[str]):
+async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, List[str]] | str):
     # Increase concurrency with higher semaphore limit for parallel processing
     semaphore = asyncio.Semaphore(10)  # Increased from 5 to 10 for more concurrent tasks
     
-    async def bounded_generate(post_title):
+    # Convert content_plan from string to dict if needed
+    if isinstance(content_plan, str):
+        try:
+            content_plan = json.loads(content_plan)
+        except json.JSONDecodeError:
+            print("❌ Could not parse content_plan JSON string")
+            return []
+    
+    # Đảm bảo content_plan có thuộc tính items
+    if not isinstance(content_plan, dict) or 'items' not in content_plan:
+        print("❌ Content plan không hợp lệ hoặc thiếu trường items")
+        return []
+    
+    content_items = content_plan['items']
+    if not isinstance(content_items, list):
+        print("❌ Content items phải là một danh sách")
+        return []
+    
+    async def bounded_generate(item):
         async with semaphore:
             try:
                 return await generate_post_content(
                     theme_title,
                     theme_story,
                     campaign_title,
-                    post_title
+                    {
+                        'title': item['title'],
+                        'goal': item['goal'],
+                        'format': item['format'],
+                        'content_idea': item['content_idea']
+                    }
                 )
             except Exception as e:
-                print(f"Error generating post with title '{post_title}': {str(e)}")
+                print(f"Error generating post with title '{content_plan['titles']}': {str(e)}")
                 return None
     
     # Create all tasks at once for maximum concurrency
-    all_tasks = [bounded_generate(title) for title in content_plan]
+    all_tasks = [bounded_generate(item) for item in content_items]
     
     # Run all tasks concurrently
-    print(f"🚀 Generating {len(content_plan)} posts concurrently...")
+    print(f"🚀 Generating {len(content_items)} posts concurrently...")
     results = await asyncio.gather(*all_tasks)
     
     # Filter out None results from failed generations
     valid_results = [r for r in results if r is not None]
-    print(f"✅ Successfully generated {len(valid_results)} out of {len(content_plan)} posts")
+    print(f"✅ Successfully generated {len(valid_results)} out of {len(content_items)} posts")
     
     return valid_results
 
@@ -259,7 +294,7 @@ async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: 
     try:
         # Enrich theme story with campaign data for better context
         enriched_story = theme.story
-        print(type(enriched_story))
+        print(5, type(enriched_story))
         
         # Chuyển đổi campaign_data từ chuỗi sang từ điển nếu cần
         if isinstance(campaign_data, str):
@@ -283,6 +318,7 @@ async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: 
                 enriched_story += f"\nContent Guidelines:\n{content_guidelines}"
         
         # Xử lý content_plan
+        # Xử lý content_plan
         content_plan = theme.content_plan
         if isinstance(content_plan, str):
             try:
@@ -290,21 +326,25 @@ async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: 
             except json.JSONDecodeError:
                 print(f"❌ Không thể phân tích cú pháp content_plan cho chủ đề ID: {theme.id}")
                 return 0
-        print('3')
-        # Trích xuất tiêu đề từ content_plan
-        titles = content_plan.get('titles', [])
-        if not titles:
-            print(f"⚠️ Không có tiêu đề trong content_plan cho chủ đề ID: {theme.id}")
+
+        # Kiểm tra cấu trúc mới của content_plan
+        if not isinstance(content_plan, dict) or 'items' not in content_plan:
+            print(f"❌ Content plan không có cấu trúc hợp lệ cho chủ đề ID: {theme.id}")
             return 0
 
-        print(f"📊 Tạo {len(titles)} bài đăng cho chiến dịch: '{campaign.title}'")
+        items = content_plan['items']
+        if not isinstance(items, list) or len(items) == 0:
+            print(f"❌ Content plan không chứa mục nào cho chủ đề ID: {theme.id}")
+            return 0
 
-        # Tạo bài đăng đồng thời bằng cách sử dụng tiêu đề từ content_plan
+        print(f"📊 Tạo {len(items)} bài đăng cho chiến dịch: '{campaign.title}'")
+
+        # Tạo bài đăng đồng thời bằng cách sử dụng toàn bộ content_plan
         posts = await process_with_semaphore(
             theme.title,
             enriched_story,
             campaign.title,
-            titles
+            content_plan
         )
         
         if not posts:
