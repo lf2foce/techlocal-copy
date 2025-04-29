@@ -333,19 +333,25 @@ async def generate_posts_from_theme(theme: DBTheme, db: Session, campaign_data: 
                 enriched_story += f"\nContent Guidelines:\n{content_guidelines}"
         
         # Xử lý content_plan
-        # Xử lý content_plan
         content_plan = theme.content_plan
         if isinstance(content_plan, str):
             try:
                 content_plan = json.loads(content_plan)
             except json.JSONDecodeError:
-                print(f"❌ Không thể phân tích cú pháp content_plan cho chủ đề ID: {theme.id}")
-                return 0
+                print(f"❌ Không thể parse content_plan JSON cho theme {theme.id}")
+                content_plan = None
 
-        # Kiểm tra cấu trúc mới của content_plan
-        if not isinstance(content_plan, dict) or 'items' not in content_plan:
-            print(f"❌ Content plan không có cấu trúc hợp lệ cho chủ đề ID: {theme.id}")
-            return 0
+        # Tạo content plan mặc định nếu không có
+        if not content_plan or not isinstance(content_plan, dict) or 'items' not in content_plan:
+            print(f"⚠️ Tạo content plan mặc định cho theme {theme.id}")
+            content_plan = {
+                "items": [{
+                    "goal": f"Tạo nội dung cho {theme.title}",
+                    "title": f"Bài viết {i+1} về {theme.title}",
+                    "format": "post",
+                    "content_idea": f"Nội dung về {theme.title}"
+                } for i in range(5)]
+            }
 
         items = content_plan['items']
         if not isinstance(items, list) or len(items) == 0:
