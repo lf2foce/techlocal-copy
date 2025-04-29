@@ -82,6 +82,11 @@ async def generate_posts_background(theme_id: int, db: Session):
             await send_telegram_message(f"⚠️ Theme {theme_id} not found in background task")
             return
             
+        # Add debug logging
+        print(f"DEBUG: Starting post generation for theme {theme_id}")
+        print(f"DEBUG: Theme data - Title: {theme.title}, Story: {theme.story}")
+        print(f"DEBUG: Content plan type: {type(theme.content_plan)}, Content: {theme.content_plan}")
+
         # Fetch campaign data for more context
         campaign = db.query(Campaign).filter(Campaign.id == theme.campaign_id).first()
         if not campaign:
@@ -94,10 +99,12 @@ async def generate_posts_background(theme_id: int, db: Session):
         
         # Kiểm tra campaign_data trước khi sử dụng
         campaign_data = campaign.campaign_data if campaign.campaign_data else {}
-        print(3, type(campaign_data))
+        print(f"DEBUG: Campaign data: {campaign_data}")
+        
         # Now we can properly await the async function with complete campaign data
         generated_count = await generate_posts_from_theme(theme, db, campaign_data=campaign_data)
         
+        print(f"DEBUG: Generated {generated_count} posts")
         # Update theme post_status to ready after successful generation
         theme.post_status = "ready"
         db.commit()
@@ -107,6 +114,7 @@ async def generate_posts_background(theme_id: int, db: Session):
         if theme:
             theme.post_status = "error"
             db.commit()
+        print(f"DEBUG: Error generating posts: {str(post_gen_error)}")
         await send_telegram_message(f"⚠️ Warning: Posts were not generated due to an error: {str(post_gen_error)}")
     finally:
         db.close()
