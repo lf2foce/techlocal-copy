@@ -46,42 +46,45 @@ load_dotenv()
 class ThemeGenerate(BaseModel):
     themes: List[ThemeBase]
 
-def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer:str, post_num: int):
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-    
-    system_prompt=f""" Tạo 3 thương hiệu cho pages với các thông tin {insight} {target_customer}. 
-    Mỗi thương hiệu phải có title và story khác nhau, và content_plan theo chiến lược từ {description} 
+async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int) -> ThemeBase:
+    """Generate a single theme using Gemini API"""
+    system_prompt = f"""Tạo một thương hiệu cho page với các thông tin {insight} {target_customer}. 
+    Thương hiệu phải có title và story độc đáo, và content_plan theo chiến lược từ {description} 
     content_plan nội dung kế hoạch cho {post_num} nội dung. 
-    Viết bằng tiếng việt
-        """
-    # Generate response using Gemini API (synchronous version)
-    response = client.models.generate_content(
-        model='gemini-2.0-flash',  # Updated to newer model version
-        contents=f"Viết cho tôi nội dung cho 3 thương hiệu chiến lược dựa trên {description}",
+    Viết bằng tiếng việt"""
+    
+    response = await client.aio.models.generate_content(
+        model='gemini-2.0-flash',
+        contents=f"Viết cho tôi nội dung cho một thương hiệu chiến lược dựa trên {description}",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
-            response_schema=ThemeGenerate,
+            response_schema=ThemeBase,
             system_instruction=types.Part.from_text(text=system_prompt),
         ),
     )
     
-    # Extract the response
-    print("Generated 3 themes with content plans based on user prompt.")
-
     content = json.loads(response.text)
-    
-    # Validate and parse the response using Pydantic
-    themes_data = ThemeGenerate(**content)
-    print(themes_data)
-    # Convert list of themes to list of tuples using dot notation for Pydantic model attributes
+    return ThemeBase(**content)
 
+async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int):
+    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    
+    # Generate 3 themes concurrently
+    tasks = [
+        generate_single_theme(client, description, insight, target_customer, post_num)
+        for _ in range(3)
+    ]
+    
+    themes = await asyncio.gather(*tasks)
+    print("Generated 3 themes concurrently with content plans based on user prompt.")
+    
     return [
         {
             "title": theme.title,
             "story": theme.story,
             "content_plan": theme.content_plan.model_dump()
         }
-        for theme in themes_data.themes
+        for theme in themes
     ]
 
 from schemas import PostMetadata

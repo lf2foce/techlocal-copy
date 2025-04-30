@@ -20,13 +20,15 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
 
     db.query(Theme).filter(Theme.campaign_id == campaign_id).delete()
 
-    themes_data = generate_theme_title_and_story(
+    # Get themes data concurrently
+    themes_data = await generate_theme_title_and_story(
         campaign.title, campaign.insight, campaign.description, campaign.target_customer, campaign.repeat_every_days
     )
 
     new_themes = []
     print('starting create theme')
 
+    # Process themes sequentially since we're working with DB
     for theme_data in themes_data:
         title = theme_data["title"]
         story = theme_data["story"]
@@ -36,7 +38,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
             campaign_id=campaign_id,
             title=title,
             story=story,
-            content_plan=content_plan,  # already dict format
+            content_plan=content_plan,
             status=ThemeStatus.pending
         )
         db.add(theme)
