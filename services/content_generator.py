@@ -89,13 +89,15 @@ class BlogPost(BaseModel):
     title: str
     content: str
 
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
 async def generate_post_content(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a post content using Google Gemini API asynchronously."""
     print(f"🔄 Starting generation of post with title: '{content_plan.get('title')}' for theme: '{theme_title}'")
     start_time = time.time()
     try:
         # Initialize the client
-        client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+        
         
         # Extract content plan metadata
         goal = content_plan.get('goal')
@@ -130,7 +132,8 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         """
         
         # Generate response using Gemini API
-        response = client.models.generate_content(
+        # response = client.models.generate_content(
+        response = await client.aio.models.generate_content(
             # model='gemini-2.5-flash-preview-04-17',  # Updated model version
             model='gemini-2.0-flash',  # Updated model version
             contents=prompt,
@@ -174,7 +177,6 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
 
 async def create_default_content_plan(theme_title: str, theme_story: str, num_posts=5) -> Dict[str, Any]:
     """Tạo content plan mặc định khi không có plan được cung cấp"""
-    client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     prompt = f"""
     Tạo kế hoạch nội dung cho chủ đề '{theme_title}' với {num_posts} bài viết.
@@ -186,7 +188,7 @@ async def create_default_content_plan(theme_title: str, theme_story: str, num_po
     - content_idea: Ý tưởng nội dung ngắn
     """
     
-    response = client.models.generate_content(
+    response = await client.aio.models.generate_content(
         model='gemini-2.0-flash',
         contents=prompt,
         config={
@@ -196,7 +198,7 @@ async def create_default_content_plan(theme_title: str, theme_story: str, num_po
     )
     
     content = json.loads(response.text)
-    return content.model_dump()
+    return content #.model_dump()
 
 async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Optional[Dict[str, Any]] = None):
     # Create a semaphore to limit concurrent API calls
