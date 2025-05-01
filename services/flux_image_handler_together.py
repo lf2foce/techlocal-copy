@@ -28,12 +28,8 @@ async def generate_and_upload_flux(
     if not api_key:
         logging.error("❌ TOGETHER_API_KEY environment variable not set.")
         return PLACEHOLDER_ERROR_IMAGE
-    
-    try:
-        client = AsyncTogether(api_key=api_key)
-    except Exception as e:
-        logging.error(f"❌ Error initializing Together client: {str(e)}")
-        return PLACEHOLDER_ERROR_IMAGE
+        
+    client = AsyncTogether(api_key=api_key)
     
     while retry_count <= MAX_RETRIES:
         try:
@@ -45,19 +41,14 @@ async def generate_and_upload_flux(
             
             # Generate image using FLUX model
             logging.info(f"Generating image with prompt: {prompt[:50]}...")
-            try:
-                response = await client.images.generate(
-                    prompt=prompt,
-                    model="black-forest-labs/FLUX.1-schnell",
-                    width=720,
-                    height=1280,
-                    steps=12,
-                    n=1
-                )
-            except AttributeError as e:
-                logging.error(f"❌ AttributeError in Together API: {str(e)}")
-                retry_count += 1
-                continue
+            response = await client.images.generate(
+                prompt=prompt,
+                model="black-forest-labs/FLUX.1-schnell",
+                width=720,
+                height=1280,
+                steps=12,
+                n=1
+            )
             
             # Check if response exists and has data
             if not response:
@@ -65,7 +56,7 @@ async def generate_and_upload_flux(
                 retry_count += 1
                 continue
                 
-            if not hasattr(response, 'data') or not response.data or len(response.data) == 0:
+            if not response.data or len(response.data) == 0:
                 logging.warning(f"⚠️ No image data in response for prompt: {prompt[:50]}...")
                 retry_count += 1
                 continue
@@ -75,13 +66,12 @@ async def generate_and_upload_flux(
                 url = response.data[0].url
                 logging.info(f"✅ Image generated: {url}")
                 try:
-                    # Try to shorten URL with TinyURL
                     shortener = pyshorteners.Shortener()
                     short_url = shortener.tinyurl.short(url)
                     logging.info(f"🔗 URL shortened: {short_url}")
                     return short_url
                 except Exception as e:
-                    logging.warning(f"⚠️ URL shortening failed, using original URL: {str(e)}")
+                    logging.warning(f"⚠️ URL shortening failed, using original URL: {e}")
                     return url
             else:
                 logging.error("❌ No image URL in response")
@@ -89,24 +79,14 @@ async def generate_and_upload_flux(
                 continue
 
         except Exception as e:
-            error_message = str(e)
-            if "RateLimitError" in error_message or "429" in error_message:
+            if "RateLimitError" in str(e) or "429" in str(e):
                 retry_count += 1
                 if retry_count > MAX_RETRIES:
                     logging.error(f"❌ Exceeded maximum retries ({MAX_RETRIES}) due to rate limits.")
                     return PLACEHOLDER_ERROR_IMAGE
                 # Retry logic will kick in at the beginning of the loop
-            elif "_interpret_async_response" in error_message or "_interpret_response_line" in error_message:
-                # Handle the specific error from the stack trace
-                logging.error(f"❌ Together API response interpretation error: {error_message}")
-                retry_count += 1
-                if retry_count > MAX_RETRIES:
-                    logging.error(f"❌ Exceeded maximum retries ({MAX_RETRIES}) after API response errors.")
-                    return PLACEHOLDER_ERROR_IMAGE
-                continue
             else:
-                logging.error(f"❌ Error in flux image generation: {error_message}", exc_info=True)
+                logging.error(f"❌ Error in flux image generation: {e}", exc_info=True)
                 return PLACEHOLDER_ERROR_IMAGE
     
-    logging.error(f"❌ Failed to generate image after {MAX_RETRIES} retries.")
     return PLACEHOLDER_ERROR_IMAGE

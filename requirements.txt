@@ -16,3 +16,4 @@ google-cloud-storage
 together
 google-cloud-aiplatform
 pyshorteners
+replicate

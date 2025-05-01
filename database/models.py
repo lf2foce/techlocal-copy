@@ -37,10 +37,32 @@ class Campaign(Base):
 
     current_step = Column(Integer, nullable=False, server_default="4")
     campaign_data = Column(Text, nullable=True)
+    
+    # 🔑 Thêm liên kết đến bảng users
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
 
+    # 🔄 Quan hệ ngược lại nếu bạn tạo User class
+    user = relationship("User", back_populates="campaigns")
     themes = relationship("Theme", back_populates="campaign")
     posts = relationship("ContentPost", back_populates="campaign")
 
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)  # clerk_user_id
+    name = Column(String)
+    email = Column(String, unique=True, nullable=False)
+    email_verified = Column(Boolean, default=False)
+    image_url = Column(String)
+    role = Column(String, default="user")
+    preferences = Column(JSONB)
+    last_login_at = Column(DateTime)
+    created_at = Column(DateTime, default=datetime)
+    updated_at = Column(DateTime, default=datetime)
+
+    # Quan hệ ngược lại
+    campaigns = relationship("Campaign", back_populates="user")
+    
 class Theme(Base):
     __tablename__ = "themes"
 
