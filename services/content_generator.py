@@ -46,32 +46,49 @@ load_dotenv()
 class ThemeGenerate(BaseModel):
     themes: List[ThemeBase]
 
-async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int) -> ThemeBase:
+async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int, content_type: str = "Auto") -> ThemeBase:
     """Generate a single theme using Gemini API"""
-    system_prompt = f"""Tạo một thương hiệu cho page với các thông tin {insight} {target_customer}. 
-    Thương hiệu phải có title và story độc đáo, và content_plan theo chiến lược từ {description} 
-    content_plan nội dung kế hoạch cho {post_num} nội dung. 
-    Viết bằng tiếng việt"""
+    system_prompt = f"""
+    Bạn là chuyên gia marketing trong việc tạo một thương hiệu cho page với các thông tin {insight} {target_customer}.
+    Thương hiệu gồm có:
+    title: tên thương hiệu (đa dạng) - có thể dựa trên thương hiệu có sẵn hoặc tên được từ mô tả khách hàng hoặc tạo mới độc đáo nếu chưa có, tuyên ngôn thương hiệu ngắn gọn
+    story: câu chuyện hoặc lời hứa thương hiệu
+    content_plan nội dung kế hoạch cho {post_num} nội dung với phong cách {content_type} cho content_plan. Nếu không nêu cụ thể phong cách cần dựa trên các kế hoạch được từ mô tả của khách hàng.
     
+    Chú ý
+    Viết bằng tiếng việt hoặc nếu nội dung đầu vào bằng nhiều tiếng anh thì trả ra bằng tiếng anh. Cố gắng tạo ra phong cách viết khác nhau trong mỗi lần tạo"""
+    
+    print("===============", content_type)
     response = await client.aio.models.generate_content(
         model='gemini-2.0-flash',
-        contents=f"Viết cho tôi nội dung cho một thương hiệu chiến lược dựa trên {description}",
+        contents=f"Chuẩn bị kế hoạch nội dung cho một thương hiệu chiến lược gồm có title - tên thương hiệu, story - câu chuyện hoặc lời hứa thương hiệu và content_plan - kế hoạch nội dung theo chiến lược từ mô tả khách hàng: {description}",
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=ThemeBase,
             system_instruction=types.Part.from_text(text=system_prompt),
+
+            temperature=1,      # Sáng tạo cao
+            # top_p=0.90,           # Cho phép đa dạng từ ngữ (có thể bỏ nếu chỉ dùng temp)
+            # top_k=40,             # Lựa chọn thay thế cho top_p (thường bỏ trống)
+            # candidate_count=3,    # Lấy nhiều lựa chọn để A/B test
+            # seed=None,            # Không cần seed để có sự ngẫu nhiên
+            # max_output_tokens=100, # Giới hạn độ dài cho quảng cáo
+            # stop_sequences=[],    # Thường không cần
+            # presence_penalty=0.5, # Phạt nhẹ sự lặp lại chung
+            frequency_penalty=0.5, # Phạt nhẹ sự lặp lại từ cụ thể
+
         ),
     )
     
     content = json.loads(response.text)
     return ThemeBase(**content)
 
-async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int):
+async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int, content_type: str = "Auto"):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     # Generate 3 themes concurrently
     tasks = [
-        generate_single_theme(client, description, insight, target_customer, post_num)
+        generate_single_theme(client, description, insight, target_customer, post_num, content_type)
         for _ in range(3)
     ]
     

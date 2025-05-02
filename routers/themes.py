@@ -22,7 +22,7 @@ async def generate_themes(campaign_id: int, db: Session = Depends(get_db)):
 
     # Get themes data concurrently
     themes_data = await generate_theme_title_and_story(
-        campaign.title, campaign.insight, campaign.description, campaign.target_customer, campaign.repeat_every_days
+        campaign.title, campaign.insight, campaign.description, campaign.target_customer, campaign.repeat_every_days, campaign.content_type
     )
 
     new_themes = []

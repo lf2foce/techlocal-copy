@@ -29,6 +29,7 @@ class Campaign(Base):
     target_customer = Column(String)
     insight = Column(String)
     description = Column(Text)
+    
     status = Column(Enum(CampaignStatus), default=CampaignStatus.draft)
     start_date = Column(Date, nullable=True)
     last_run_date = Column(Date, nullable=True)
@@ -37,6 +38,7 @@ class Campaign(Base):
 
     current_step = Column(Integer, nullable=False, server_default="4")
     campaign_data = Column(Text, nullable=True)
+    content_type = Column(String, nullable=True)
     
     # 🔑 Thêm liên kết đến bảng users
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
