@@ -58,12 +58,14 @@ class User(Base):
     image_url = Column(String)
     role = Column(String, default="user")
     preferences = Column(JSONB)
+    credits_remaining = Column(Integer, default=100)
     last_login_at = Column(DateTime)
     created_at = Column(DateTime, default=datetime)
     updated_at = Column(DateTime, default=datetime)
 
     # Quan hệ ngược lại
     campaigns = relationship("Campaign", back_populates="user")
+    credit_logs = relationship("CreditLog", back_populates="user")
     
 class Theme(Base):
     __tablename__ = "themes"
@@ -80,6 +82,19 @@ class Theme(Base):
 
     campaign = relationship("Campaign", back_populates="themes")
     posts = relationship("ContentPost", back_populates="theme")
+
+class CreditLog(Base):
+    __tablename__ = "credit_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    action = Column(String, nullable=False)
+    credits_used = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, default=datetime.now, nullable=False)
+    credit_metadata = Column(JSONB)
+
+    # Quan hệ với User
+    user = relationship("User", back_populates="credit_logs")
 
 class ContentPost(Base):
     __tablename__ = "content_posts"
