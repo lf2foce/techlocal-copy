@@ -43,25 +43,76 @@ load_dotenv()
 #     content_plan: List[Plan]
 
 
+#    5. `tone`: Giọng văn gợi ý (VD: “êm dịu”, “gần gũi”, “chuyên nghiệp”)
+#     6. `emotion`: Cảm xúc chủ đạo của chiến lược (VD: “Đồng cảm”, “Say mê”, “Khao khát”)
+#     7. `keywords`: Các từ khóa chính gợi ý cho nội dung
+#     8. `strategy_mix`: Các hướng triển khai nội dung (VD: ["Inspire", "Educate"])
+#     9. `angle_mix`: Cách thể hiện bài viết (VD: ["Story", "How-to", "Listicle"])
+#     10. `hook_suggestions`: Các câu mở đầu bài viết gợi cảm xúc
+
 class ThemeGenerate(BaseModel):
     themes: List[ThemeBase]
 
 async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int, content_type: str = "Auto") -> ThemeBase:
     """Generate a single theme using Gemini API"""
-    system_prompt = f"""
-    Bạn là chuyên gia marketing trong việc tạo một thương hiệu cho page với các thông tin {insight} {target_customer}.
-    Thương hiệu gồm có:
-    title: tên thương hiệu (đa dạng) - có thể dựa trên thương hiệu có sẵn hoặc tên được từ mô tả khách hàng hoặc tạo mới độc đáo nếu chưa có, tuyên ngôn thương hiệu ngắn gọn
-    story: câu chuyện hoặc lời hứa thương hiệu
-    content_plan nội dung kế hoạch cho {post_num} nội dung với phong cách {content_type} cho content_plan. Nếu không nêu cụ thể phong cách cần dựa trên các kế hoạch được từ mô tả của khách hàng.
+    # Định nghĩa danh sách chiến lược
+    strategy_list = [
+    "Đồng cảm (Empathy): Kết nối sâu sắc với nỗi đau hoặc trải nghiệm người dùng.",
+    "Khao khát (Desire): Gợi mở điều người đọc muốn đạt tới, nâng cấp cuộc sống.",
+    "Hào hứng (Excitement): Tạo sự tò mò, năng lượng cao, truyền động lực hành động.",
+    "Say mê / Truyền cảm hứng (Inspiration): Gợi lên khát vọng sống ý nghĩa, vượt qua giới hạn.",
+    "Lo sợ / Urgency: Gây cảm giác cần thay đổi ngay, nhấn mạnh hậu quả hoặc mất mát."
+]
+    # selected_strategy = random.choice(strategy_list).split(":")[0]  # Lấy nhãn ngắn gọn
+    # Chọn ngẫu nhiên một chiến lược
+    selected_strategy = random.choice(strategy_list)
     
-    Chú ý
-    Viết bằng tiếng việt hoặc nếu nội dung đầu vào bằng nhiều tiếng anh thì trả ra bằng tiếng anh. Cố gắng tạo ra phong cách viết khác nhau trong mỗi lần tạo"""
+    system_prompt = f"""
+   Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
+
+    Chiến lược này gồm:
+
+    1. `title`: Tên chiến lược gợi cảm xúc – thường là brand variant hoặc cụm từ dễ nhớ (VD: “ZenDream”, “Slow Start”)
+    2. `focus`: Chủ đề nội dung trung tâm (VD: “Chăm sóc giấc ngủ với thảo mộc”)
+    3. `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: “Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu”)
+    4. `story`: Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto
+ 
+
+    Sau đó, tạo `items[]` gồm các bài post cụ thể:
+    - `goal`: Mục tiêu bài
+    - `title`: Tiêu đề cụ thể
+    - `format`: Định dạng bài viết (Carousel, Video ngắn, Minigame…)
+    - `content_idea`: Mô tả nội dung bài
+    - `structure_hint`: Gợi ý bố cục viết bài (VD: “Hook > Story > CTA”)
+
+    Trả kết quả dạng JSON đúng cấu trúc.
+    Chiến lược cảm xúc chủ đạo được chọn ngẫu nhiên là: **{selected_strategy}**. Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
+
+    Hãy tạo kết quả gồm 3 phần sau:
+
+    1. **title**: tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight)
+    2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, được thể hiện theo cảm xúc {selected_strategy}
+    3. **content_plan**: kế hoạch cho {post_num} bài viết. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
+
+    Yêu cầu:
+    - Viết bằng tiếng Việt nếu input chủ yếu là tiếng Việt. Nếu phần lớn là tiếng Anh, bạn có thể trả bằng tiếng Anh.
+    - Không lặp lại cấu trúc bài viết quá giống nhau.
+    - Nếu không rõ phong cách viết (content_type), hãy đề xuất các định dạng bài viết như: storytelling, listicle, cảnh báo, phân tích, câu hỏi...
+    - Đảm bảo cảm xúc {selected_strategy} chi phối toàn bộ tiêu đề, nội dung và thông điệp của theme.
+"""
     
     print("===============", content_type)
     response = await client.aio.models.generate_content(
         model='gemini-2.0-flash',
-        contents=f"Chuẩn bị kế hoạch nội dung cho một thương hiệu chiến lược gồm có title - tên thương hiệu, story - câu chuyện hoặc lời hứa thương hiệu và content_plan - kế hoạch nội dung theo chiến lược từ mô tả khách hàng: {description}",
+        contents=f""" 
+        Dưới đây là thông tin từ người dùng:
+
+        - Mô tả chung: {description}
+        - Insight người dùng: {insight}
+        - Đối tượng mục tiêu: {target_customer}
+        Dựa trên các dữ liệu trên, hãy tạo một chiến lược nội dung cảm xúc hoàn chỉnh theo cấu trúc đã định nghĩa.
+        
+        """,
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=ThemeBase,

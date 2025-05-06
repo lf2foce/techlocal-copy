@@ -36,8 +36,8 @@ class Campaign(Base):
     next_run_date = Column(Date, nullable=True)
     is_active = Column(Boolean, default=True)
 
-    current_step = Column(Integer, nullable=False, server_default="4")
-    campaign_data = Column(Text, nullable=True)
+    current_step = Column(Integer, nullable=False)
+    campaign_data = Column(JSONB, nullable=True)  # Thay đổi từ Text sang JSONB
     content_type = Column(String, nullable=True)
     
     # 🔑 Thêm liên kết đến bảng users
