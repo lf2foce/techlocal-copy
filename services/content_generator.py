@@ -53,29 +53,42 @@ load_dotenv()
 class ThemeGenerate(BaseModel):
     themes: List[ThemeBase]
 
-async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int, content_type: str = "Auto") -> ThemeBase:
+async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int, content_type: str = "Auto", used_strategies: set = None) -> ThemeBase:
     """Generate a single theme using Gemini API"""
     # Định nghĩa danh sách chiến lược
     strategy_list = [
-    "Đồng cảm (Empathy): Kết nối sâu sắc với nỗi đau hoặc trải nghiệm người dùng.",
-    "Khao khát (Desire): Gợi mở điều người đọc muốn đạt tới, nâng cấp cuộc sống.",
-    "Hào hứng (Excitement): Tạo sự tò mò, năng lượng cao, truyền động lực hành động.",
-    "Say mê / Truyền cảm hứng (Inspiration): Gợi lên khát vọng sống ý nghĩa, vượt qua giới hạn.",
-    "Lo sợ / Urgency: Gây cảm giác cần thay đổi ngay, nhấn mạnh hậu quả hoặc mất mát."
-]
-    # selected_strategy = random.choice(strategy_list).split(":")[0]  # Lấy nhãn ngắn gọn
-    # Chọn ngẫu nhiên một chiến lược
-    selected_strategy = random.choice(strategy_list)
+        "Đồng cảm (Empathy): Kết nối sâu sắc với nỗi đau hoặc trải nghiệm người dùng.",
+        "Khao khát (Desire): Gợi mở điều người đọc muốn đạt tới, nâng cấp cuộc sống.",
+        "Hào hứng (Excitement): Tạo sự tò mò, năng lượng cao, truyền động lực hành động.",
+        "Say mê / Truyền cảm hứng (Inspiration): Gợi lên khát vọng sống ý nghĩa, vượt qua giới hạn.",
+        "Lo sợ / Urgency: Gây cảm giác cần thay đổi ngay, nhấn mạnh hậu quả hoặc mất mát."
+    ]
     
+    # Lọc ra các chiến lược chưa được sử dụng
+    available_strategies = strategy_list.copy()
+    if used_strategies:
+        available_strategies = [s for s in strategy_list if s not in used_strategies]
+    
+    # Nếu đã hết chiến lược mới, reset lại danh sách
+    if not available_strategies:
+        available_strategies = strategy_list.copy()
+    
+    # Chọn ngẫu nhiên một chiến lược từ các chiến lược còn lại
+    selected_strategy = random.choice(available_strategies)
+    
+    # Thêm chiến lược đã chọn vào set đã sử dụng
+    if used_strategies is not None:
+        used_strategies.add(selected_strategy)
+
     system_prompt = f"""
    Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
 
     Chiến lược này gồm:
 
-    1. `title`: Tên chiến lược gợi cảm xúc – thường là brand variant hoặc cụm từ dễ nhớ (VD: “ZenDream”, “Slow Start”)
+    1. `title`: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: “ZenDream”, “Slow Start”)
     2. `focus`: Chủ đề nội dung trung tâm (VD: “Chăm sóc giấc ngủ với thảo mộc”)
     3. `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: “Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu”)
-    4. `story`: Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto
+    4. `story`: Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc chính.
  
 
     Sau đó, tạo `items[]` gồm các bài post cụ thể:
@@ -137,14 +150,17 @@ async def generate_single_theme(client, description: str, insight: str, target_c
 async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int, content_type: str = "Auto"):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
-    # Generate 3 themes concurrently
+    # Tạo set để theo dõi các chiến lược đã sử dụng
+    used_strategies = set()
+    
+    # Generate 3 themes concurrently với các chiến lược khác nhau
     tasks = [
-        generate_single_theme(client, description, insight, target_customer, post_num, content_type)
+        generate_single_theme(client, description, insight, target_customer, post_num, content_type, used_strategies)
         for _ in range(3)
     ]
     
     themes = await asyncio.gather(*tasks)
-    print("Generated 3 themes concurrently with content plans based on user prompt.")
+    print("Generated 3 themes concurrently with different strategies based on user prompt.")
     
     return [
         {
