@@ -222,10 +222,10 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
                 f"--- MỤC TIÊU BÀI VIẾT ---\n{goal}\n\n"
                 f"--- Ý TƯỞNG NỘI DUNG ---\n{content_idea}\n\n"
                 f"--- YÊU CẦU ---\n"
-                f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng. Có thể thêm hài hước/suy tư tứ đề.\n"
+                f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng, viết như bạn thân. Có thể thêm hài hước/suy tư tứ đề.\n" 
                 f"- Cấu trúc: Mở đầu thu hút, thân phát triển ý, kết bài ý nghĩa.\n"
                 f"- Kết bài: Khuyến khích tương tác (câu hỏi mở) hoặc đưa ra lời khích lệ/hành động nhỏ.\n"
-                f"- QUAN TRỌNG: Sử dụng emoji (VD: 💡🤔💪❤️🙏😢📈🤝🌟✨) phù hợp, tự nhiên để tăng biểu cảm. Đừng lạm dụng.\n\n"
+                f"- Thi thoảng Sử dụng emoji (VD: 💡🤔💪❤️🙏😢📈🤝🌟✨) phù hợp, tự nhiên để tăng biểu cảm. Đừng lạm dụng.\n\n"
                 "Output: ONLY a valid JSON object with a single key 'post_content' containing the full Vietnamese post as a single string."
             )
 
