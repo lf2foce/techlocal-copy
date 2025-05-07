@@ -100,7 +100,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     print(f"============== {content_type}: ",format_instruction)
     system_prompt = f"""
     Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
-    Phải viết làm sao cho như người dùng có thể đọc được và hiểu được. Chứ đừng như máy viết
+    
     Chiến lược này gồm:
 
     1. `title`: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
@@ -116,6 +116,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     1. **title**: tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight)
     2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, được thể hiện theo cảm xúc {selected_strategy}
     3. **content_plan**: kế hoạch cho {post_num} bài viết {content_type}. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
+        Phải viết làm sao cho như người dùng có thể đọc được và hiểu được. Chứ đừng như máy viết mà không có ý nghĩa.
         Gồm có các items:
          - `goal`: Mục tiêu bài viết cần dựa trên 
         - `title`: Tiêu đề cụ thể
