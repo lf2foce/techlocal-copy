@@ -100,29 +100,23 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     print(f"============== {content_type}: ",format_instruction)
     system_prompt = f"""
     Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
-    
-    Chiến lược này gồm:
+    Chú ý các từ khoá dưới đây để tạo nên title và story hấp dẫn
+    `focus`: Chủ đề nội dung trung tâm (VD: "Chăm sóc giấc ngủ với thảo mộc")
+    `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
 
-    1. `title`: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
-    2. `focus`: Chủ đề nội dung trung tâm (VD: "Chăm sóc giấc ngủ với thảo mộc")
-    3. `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
-    4. `story`: Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc chính.
-
-    Trả kết quả dạng JSON đúng cấu trúc.
     Chiến lược cảm xúc chủ đạo được chọn ngẫu nhiên là: **{selected_strategy}**. Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
 
     Hãy tạo kết quả gồm 3 phần sau:
 
-    1. **title**: sáng tạo tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight) (ví dụ  Awesome Banana - Chuổi đỉnh)
-    2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, được thể hiện theo cảm xúc {selected_strategy}
+    1. **title**: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
+    2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc {selected_strategy}
     3. **content_plan**: kế hoạch cho {post_num} bài viết {content_type}. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
-        Phải viết làm sao cho như người dùng có thể đọc được và hiểu được. Chứ đừng như máy viết mà không có ý nghĩa.
         Gồm có các items:
          - `goal`: Mục tiêu bài viết cần dựa trên 
         - `title`: Tiêu đề cụ thể
+        -  `goals`: Mục tiêu bài viết cần dựa trên
         - `format`: this is content type stricly follow  {content_type}
         - `content_idea`: Mô tả nội dung bài cần dựa trên
-        - `structure_hint`: Gợi ý bố cục viết bài (VD: "Hook > Story > CTA")
     
     Yêu cầu:
     - Viết bằng tiếng Việt nếu input chủ yếu là tiếng Việt. Nếu phần lớn là tiếng Anh, bạn có thể trả bằng tiếng Anh.
