@@ -99,7 +99,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     
     print(f"============== {content_type}: ",format_instruction)
     system_prompt = f"""
-    Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
+    Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc từ thương hiệu/nhãn hiệu/cậu chuyện/kế hoạch)** để triển khai thành nhiều bài viết trên mạng xã hội với cá tính riêng.
     Chú ý các từ khoá dưới đây để tạo nên title và story hấp dẫn
     `focus`: Chủ đề nội dung trung tâm (VD: "Chăm sóc giấc ngủ với thảo mộc")
     `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
@@ -120,10 +120,6 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     
     Yêu cầu:
     - Viết bằng tiếng Việt nếu input chủ yếu là tiếng Việt. Nếu phần lớn là tiếng Anh, bạn có thể trả bằng tiếng Anh.
-    - Không lặp lại cấu trúc bài viết quá giống nhau.
-    - Nếu không rõ phong cách viết (content_type), hãy đề xuất các định dạng bài viết như: storytelling, listicle, cảnh báo, phân tích, câu hỏi...
-    - Đảm bảo cảm xúc {selected_strategy} chi phối toàn bộ tiêu đề, nội dung và thông điệp của theme.
-    - Khi chọn Storytelling, tập trung vào:
       * Kết nối cảm xúc với thương hiệu
       * Xây dựng câu chuyện có cốt truyện rõ ràng
       * Tạo hình ảnh phong cách sống hấp dẫn
