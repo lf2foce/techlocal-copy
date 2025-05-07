@@ -113,14 +113,14 @@ async def generate_single_theme(client, description: str, insight: str, target_c
 
     Hãy tạo kết quả gồm 3 phần sau:
 
-    1. **title**: tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight)
+    1. **title**: sáng tạo tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight) (ví dụ  Awesome Banana - Chuổi đỉnh)
     2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, được thể hiện theo cảm xúc {selected_strategy}
     3. **content_plan**: kế hoạch cho {post_num} bài viết {content_type}. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
         Phải viết làm sao cho như người dùng có thể đọc được và hiểu được. Chứ đừng như máy viết mà không có ý nghĩa.
         Gồm có các items:
          - `goal`: Mục tiêu bài viết cần dựa trên 
         - `title`: Tiêu đề cụ thể
-        - `format`: this is content type stricly follow  {content_type} đề xuất (Storytelling, Listicle, CTA, Video ngắn, Carousel, Minigame…)
+        - `format`: this is content type stricly follow  {content_type}
         - `content_idea`: Mô tả nội dung bài cần dựa trên
         - `structure_hint`: Gợi ý bố cục viết bài (VD: "Hook > Story > CTA")
     
