@@ -82,6 +82,7 @@ class CampaignInput(BaseModel):
     description: str
     targetCustomer: str
     insight: str
+    content_type: str
 
 class CampaignRequest(BaseModel):
     campaignInput: CampaignInput
@@ -168,7 +169,9 @@ async def generate_campaign_meta(campaign: CampaignInput, db: Session) -> Descri
         contents=f"""Phân tích thông tin chiến dịch để xác định các yếu tố description prompt.  Tiêu đề: {campaign.title}
             Mô tả: {campaign.description}
             Đối tượng: {campaign.targetCustomer}
-            Insight: {campaign.insight}""",
+            Insight khách hàng: {campaign.insight}
+            Phong cách viết nội dung: {campaign.content_type}
+            """,
         config=types.GenerateContentConfig(
             response_mime_type='application/json',
             response_schema=DescriptionGenerate,

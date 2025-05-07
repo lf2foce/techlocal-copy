@@ -55,6 +55,9 @@ class ThemeGenerate(BaseModel):
 
 async def generate_single_theme(client, description: str, insight: str, target_customer: str, post_num: int, content_type: str = "Auto", used_strategies: set = None) -> ThemeBase:
     """Generate a single theme using Gemini API"""
+    # Định nghĩa danh sách format mặc định khi content_type là Auto
+   
+
     # Định nghĩa danh sách chiến lược
     strategy_list = [
         "Đồng cảm (Empathy): Kết nối sâu sắc với nỗi đau hoặc trải nghiệm người dùng.",
@@ -80,23 +83,30 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     if used_strategies is not None:
         used_strategies.add(selected_strategy)
 
+    # Content type mapping dictionary for cleaner code
+    content_type_map = {
+        "Auto": "Let the AI model choose the appropriate format based on context",
+        "Casestudy": "Longer-form, detailed, with a clear conclusion",
+        "Storytelling": "For emotional brand connection, lifestyle vibes",
+        "Tips & Advice": "Practical, short, high-value tips",
+        "Trend Spotting": "Covers current or upcoming fashion trends",
+        "SEO Blog Posts": "Longer-form for website traffic or blog use",
+        "Shopee Product Descriptions": "Optimized product copy"
+    }
+    
+    # Get format instruction from mapping
+    format_instruction = content_type_map.get(content_type, f'Định dạng bài viết phải là "{content_type}"')
+    
+    print(f"============== {content_type}: ",format_instruction)
     system_prompt = f"""
-   Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
-
+    Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc)** để triển khai thành nhiều bài viết trên mạng xã hội hoặc nền tảng thương mại điện tử.
+    Phải viết làm sao cho như người dùng có thể đọc được và hiểu được. Chứ đừng như máy viết
     Chiến lược này gồm:
 
-    1. `title`: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: “ZenDream”, “Slow Start”)
-    2. `focus`: Chủ đề nội dung trung tâm (VD: “Chăm sóc giấc ngủ với thảo mộc”)
-    3. `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: “Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu”)
+    1. `title`: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
+    2. `focus`: Chủ đề nội dung trung tâm (VD: "Chăm sóc giấc ngủ với thảo mộc")
+    3. `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
     4. `story`: Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc chính.
- 
-
-    Sau đó, tạo `items[]` gồm các bài post cụ thể:
-    - `goal`: Mục tiêu bài
-    - `title`: Tiêu đề cụ thể
-    - `format`: Định dạng bài viết (Carousel, Video ngắn, Minigame…)
-    - `content_idea`: Mô tả nội dung bài
-    - `structure_hint`: Gợi ý bố cục viết bài (VD: “Hook > Story > CTA”)
 
     Trả kết quả dạng JSON đúng cấu trúc.
     Chiến lược cảm xúc chủ đạo được chọn ngẫu nhiên là: **{selected_strategy}**. Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
@@ -105,23 +115,34 @@ async def generate_single_theme(client, description: str, insight: str, target_c
 
     1. **title**: tên thương hiệu/kênh nội dung (ưu tiên sáng tạo, gợi hình, phù hợp insight)
     2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, được thể hiện theo cảm xúc {selected_strategy}
-    3. **content_plan**: kế hoạch cho {post_num} bài viết. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
-
+    3. **content_plan**: kế hoạch cho {post_num} bài viết {content_type}. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
+        Gồm có các items:
+         - `goal`: Mục tiêu bài viết cần dựa trên 
+        - `title`: Tiêu đề cụ thể
+        - `format`: this is content type stricly follow  {content_type} đề xuất (Storytelling, Listicle, CTA, Video ngắn, Carousel, Minigame…)
+        - `content_idea`: Mô tả nội dung bài cần dựa trên
+        - `structure_hint`: Gợi ý bố cục viết bài (VD: "Hook > Story > CTA")
+    
     Yêu cầu:
     - Viết bằng tiếng Việt nếu input chủ yếu là tiếng Việt. Nếu phần lớn là tiếng Anh, bạn có thể trả bằng tiếng Anh.
     - Không lặp lại cấu trúc bài viết quá giống nhau.
     - Nếu không rõ phong cách viết (content_type), hãy đề xuất các định dạng bài viết như: storytelling, listicle, cảnh báo, phân tích, câu hỏi...
     - Đảm bảo cảm xúc {selected_strategy} chi phối toàn bộ tiêu đề, nội dung và thông điệp của theme.
+    - Khi chọn Storytelling, tập trung vào:
+      * Kết nối cảm xúc với thương hiệu
+      * Xây dựng câu chuyện có cốt truyện rõ ràng
+      * Tạo hình ảnh phong cách sống hấp dẫn
+      * Sử dụng ngôn ngữ giàu hình ảnh và cảm xúc
 """
     
-    print("===============", content_type)
     response = await client.aio.models.generate_content(
         model='gemini-2.0-flash',
         contents=f""" 
         Dưới đây là thông tin từ người dùng:
 
         - Mô tả chung: {description}
-        - Insight người dùng: {insight}
+        - Insight người dùng: {insight}    - `format`: Định dạng bài viết cần dựa trên {content_type} đề xuất (Carousel, Video ngắn, Minigame…)
+
         - Đối tượng mục tiêu: {target_customer}
         Dựa trên các dữ liệu trên, hãy tạo một chiến lược nội dung cảm xúc hoàn chỉnh theo cấu trúc đã định nghĩa.
         
@@ -147,7 +168,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     content = json.loads(response.text)
     return ThemeBase(**content)
 
-async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int, content_type: str = "Auto"):
+async def generate_theme_title_and_story(campaign_title: str, insight: str, description: str, target_customer: str, post_num: int, content_type: str):
     client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
     
     # Tạo set để theo dõi các chiến lược đã sử dụng
@@ -200,7 +221,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
                 f"--- MỤC TIÊU BÀI VIẾT ---\n{goal}\n\n"
                 f"--- Ý TƯỞNG NỘI DUNG ---\n{content_idea}\n\n"
                 f"--- YÊU CẦU ---\n"
-                f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng. Có thể thêm hài hước/suy tư tùy chủ đề.\n"
+                f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng. Có thể thêm hài hước/suy tư tứ đề.\n"
                 f"- Cấu trúc: Mở đầu thu hút, thân phát triển ý, kết bài ý nghĩa.\n"
                 f"- Kết bài: Khuyến khích tương tác (câu hỏi mở) hoặc đưa ra lời khích lệ/hành động nhỏ.\n"
                 f"- QUAN TRỌNG: Sử dụng emoji (VD: 💡🤔💪❤️🙏😢📈🤝🌟✨) phù hợp, tự nhiên để tăng biểu cảm. Đừng lạm dụng.\n\n"
