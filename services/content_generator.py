@@ -130,10 +130,11 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc {selected_strategy}
     3. **content_plan**: Kế hoạch cho {post_num} bài viết theo định dạng {content_type}. Mỗi bài gồm:
    - `goal`: Mục tiêu nội dung (ví dụ: gợi nhắc ký ức, truyền cảm hứng, tri ân cha mẹ,...)
-   - `title`: Tiêu đề gợi cảm xúc, **không được mang tính quảng cáo**, không dùng từ như "ưu đãi", "miễn phí", "khuyến mãi", "thử thách", "bí kíp", v.v. Nếu là storytelling, phải là một dòng kể chuyện hoặc mở đầu cảm xúc.
+   - `title`: Tiêu đề gợi cảm xúc, thu hút, gây tò mò **không được mang tính quảng cáo**, không dùng từ như "ưu đãi", "miễn phí", "khuyến mãi", "thử thách", "bí kíp", v.v. Nếu là storytelling, phải là một dòng kể chuyện hoặc mở đầu cảm xúc.
    - `format`: Luôn là {content_type}
-   - `content_idea`: Mô tả nội dung triển khai. Nếu là storytelling, **tuyệt đối không được mô tả công dụng trực tiếp của sản phẩm**, chỉ được thể hiện sản phẩm qua hành động, tình huống, hoặc mối quan hệ.
-
+   - `content_idea`: 
+        Mô tả nội dung triển khai. Nếu là storytelling, **tuyệt đối không được mô tả công dụng trực tiếp của sản phẩm**, chỉ được thể hiện sản phẩm qua hành động, tình huống, hoặc mối quan hệ.
+        Truyền tải một vài giá trị về kiến thức/thông tin độc đáo/cảm xúc (1 câu nói kinh điển, 1 câu thơ kinh điển, 1 thành ngữ kinh điển nói về tình cảm gia đình, ...)
     Yêu cầu:
     - Kết nối cảm xúc với thương hiệu
     - Trình bày rõ ràng, dễ hiểu, tạo cảm giác chân thật

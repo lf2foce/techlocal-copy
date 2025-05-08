@@ -61,6 +61,7 @@ class ContentItem(BaseModel):
     title: str
     format: str
     content_idea: str
+    hook_suggestions: str
 
 class Plan(BaseModel):
     items: List[ContentItem]
