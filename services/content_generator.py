@@ -67,6 +67,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
         "Lo sợ / Urgency: Gây cảm giác cần thay đổi ngay, nhấn mạnh hậu quả hoặc mất mát."
     ]
     
+    
     # Lọc ra các chiến lược chưa được sử dụng
     available_strategies = strategy_list.copy()
     if used_strategies:
@@ -87,7 +88,10 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     content_type_map = {
         "Auto": "Let the AI model choose the appropriate format based on context",
         "Casestudy": "Longer-form, detailed, with a clear conclusion",
-        "Storytelling": "For emotional brand connection, lifestyle vibes",
+        "Storytelling": """ Viết theo phong cách kể chuyện: có nhân vật cụ thể, cảm xúc, hoàn cảnh và cao trào
+        Tránh dùng ngôn ngữ quảng cáo hay khuyến mãi (ví dụ: 'ưu đãi', 'mua ngay', 'tháng này')
+        Tập trung vào hành trình thay đổi, sự gắn kết cảm xúc và thông điệp nhân văn""",
+        
         "Tips & Advice": "Practical, short, high-value tips",
         "Trend Spotting": "Covers current or upcoming fashion trends",
         "SEO Blog Posts": "Longer-form for website traffic or blog use",
@@ -97,7 +101,18 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     # Get format instruction from mapping
     format_instruction = content_type_map.get(content_type, f'Định dạng bài viết phải là "{content_type}"')
     
+    # Format-specific rule nếu là Storytelling
+    storytelling_note = ""
+    if content_type == "Storytelling":
+        storytelling_note = """
+       ❗Lưu ý cực kỳ quan trọng:
+        - Không được dùng từ như: ưu đãi, giveaway, miễn phí, thử thách, biến hình, bí kíp, sản phẩm, khuyến mãi ở tiêu đề của content_plan
+        - Không được đề cập thương hiệu ở tiêu đề (nếu không có vai trò cảm xúc).
+        - Chỉ dùng tên người, thời gian, sự kiện, ký ức, hành trình, hoặc mối quan hệ (cha-con, mẹ-con, vợ-chồng...).
+        - Chỉ thể hiện sản phẩm qua *tình huống* hoặc *hành động ý nghĩa*, không được miêu tả công dụng trực tiếp.
+        """
     print(f"============== {content_type}: ",format_instruction)
+    
     system_prompt = f"""
     Nhiệm vụ của bạn là tạo một **strategy (chiến lược nội dung cảm xúc từ thương hiệu/nhãn hiệu/cậu chuyện/kế hoạch)** để triển khai thành nhiều bài viết trên mạng xã hội với cá tính riêng.
     Nếu người dùng có sẵn thương hiệu rồi thì chỉ cần viết các tiêu đề gợi cảm xúc và đối tượng mục tiêu. (Ví dụ nếu sản phẩm sữa rửa mặt mặt nam thì title có thể là 'Nam Tính Mới' đại diện cho một hướng đi chiến lược)
@@ -105,26 +120,29 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     `focus`: Chủ đề nội dung trung tâm (VD: "Chăm sóc giấc ngủ với thảo mộc")
     `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
 
-    Chiến lược cảm xúc chủ đạo được chọn ngẫu nhiên là: **{selected_strategy}**. Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
+    **Cảm xúc chủ đạo được chọn là: {selected_strategy}**
+    Định dạng bài viết là: {content_type} – {format_instruction} {storytelling_note}.
+    Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
     
     Hãy tạo kết quả gồm 3 phần sau:
 
     1. **title**: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
     2. **story**: câu chuyện thương hiệu hoặc lời hứa cốt lõi, Một đoạn kể cảm xúc thể hiện lời hứa thương hiệu – chính là brand manifesto hoặc gợi ý cảm xúc {selected_strategy}
-    3. **content_plan**: kế hoạch cho {post_num} bài viết {content_type}. Mỗi bài gồm tiêu đề gợi cảm xúc và hướng triển khai phù hợp với cảm xúc và đối tượng đã cho.
-        Gồm có các items:
-         - `goal`: Mục tiêu bài viết cần dựa trên 
-        - `title`: Tiêu đề bài viết gợi cảm xúc như hook
-        -  `goal`: Mục tiêu bài viết cần dựa trên
-        - `format`: this is content type stricly follow  {content_type}
-        - `content_idea`: Mô tả nội dung bài cần dựa trên
-    
+    3. **content_plan**: Kế hoạch cho {post_num} bài viết theo định dạng {content_type}. Mỗi bài gồm:
+   - `goal`: Mục tiêu nội dung (ví dụ: gợi nhắc ký ức, truyền cảm hứng, tri ân cha mẹ,...)
+   - `title`: Tiêu đề gợi cảm xúc, **không được mang tính quảng cáo**, không dùng từ như "ưu đãi", "miễn phí", "khuyến mãi", "thử thách", "bí kíp", v.v. Nếu là storytelling, phải là một dòng kể chuyện hoặc mở đầu cảm xúc.
+   - `format`: Luôn là {content_type}
+   - `content_idea`: Mô tả nội dung triển khai. Nếu là storytelling, **tuyệt đối không được mô tả công dụng trực tiếp của sản phẩm**, chỉ được thể hiện sản phẩm qua hành động, tình huống, hoặc mối quan hệ.
+
     Yêu cầu:
+    - Kết nối cảm xúc với thương hiệu
+    - Trình bày rõ ràng, dễ hiểu, tạo cảm giác chân thật
+    - Tránh từ ngữ bán hàng nếu là storytelling
+        * Xây dựng câu chuyện có cốt truyện rõ ràng
+        * Tạo hình ảnh phong cách sống hấp dẫn
+        * Sử dụng ngôn ngữ giàu hình ảnh và cảm xúc
     - Viết bằng tiếng Việt nếu input chủ yếu là tiếng Việt. Nếu phần lớn là tiếng Anh, bạn có thể trả bằng tiếng Anh.
-      * Kết nối cảm xúc với thương hiệu
-      * Xây dựng câu chuyện có cốt truyện rõ ràng
-      * Tạo hình ảnh phong cách sống hấp dẫn
-      * Sử dụng ngôn ngữ giàu hình ảnh và cảm xúc
+      
 """
     
     response = await client.aio.models.generate_content(
@@ -133,8 +151,8 @@ async def generate_single_theme(client, description: str, insight: str, target_c
         Dưới đây là thông tin từ người dùng:
 
         - Mô tả chung: {description}
-        - Insight người dùng: {insight}    - `format`: Định dạng bài viết cần dựa trên {content_type} đề xuất 
-
+        - Insight người dùng: {insight}   
+        - `format`: Định dạng bài viết cần dựa trên {content_type} đề xuất 
         - Đối tượng mục tiêu: {target_customer}
         Dựa trên các dữ liệu trên, hãy tạo một chiến lược nội dung cảm xúc hoàn chỉnh theo cấu trúc đã định nghĩa.
         
