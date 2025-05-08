@@ -106,7 +106,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
     `core_promise`: Thông điệp cốt lõi giúp người đọc thấy giá trị thực (VD: "Một giấc ngủ sâu bắt đầu từ một tách trà êm dịu")
 
     Chiến lược cảm xúc chủ đạo được chọn ngẫu nhiên là: **{selected_strategy}**. Đây là cảm xúc trung tâm sẽ chi phối toàn bộ cách kể chuyện, title, story, tone bài viết và kế hoạch nội dung.
-
+    
     Hãy tạo kết quả gồm 3 phần sau:
 
     1. **title**: Tên nhãn hiệu (ví dụ chuối ngon 37, Awesome Banana) gợi cảm xúc – đi kèm với lời hứa thương hiệu thường là brand variant hoặc cụm từ dễ nhớ (VD: "ZenDream", "Slow Start")
@@ -133,7 +133,7 @@ async def generate_single_theme(client, description: str, insight: str, target_c
         Dưới đây là thông tin từ người dùng:
 
         - Mô tả chung: {description}
-        - Insight người dùng: {insight}    - `format`: Định dạng bài viết cần dựa trên {content_type} đề xuất (Carousel, Video ngắn, Minigame…)
+        - Insight người dùng: {insight}    - `format`: Định dạng bài viết cần dựa trên {content_type} đề xuất 
 
         - Đối tượng mục tiêu: {target_customer}
         Dựa trên các dữ liệu trên, hãy tạo một chiến lược nội dung cảm xúc hoàn chỉnh theo cấu trúc đã định nghĩa.
@@ -191,7 +191,7 @@ class BlogPost(BaseModel):
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 
-async def generate_post_content(theme_title: str, theme_story: str, campaign_title: str, content_plan: Dict[str, Any]) -> Dict[str, Any]:
+async def generate_post_content(theme_title: str, theme_story: str, campaign_desc: str, content_plan: Dict[str, Any]) -> Dict[str, Any]:
     """Generate a post content using Google Gemini API asynchronously."""
     print(f"🔄 Starting generation of post with title: '{content_plan.get('title')}' for theme: '{theme_title}'")
     start_time = time.time()
@@ -203,33 +203,30 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         goal = content_plan.get('goal')
         format_type = content_plan.get('format')
         content_idea = content_plan.get('content_idea')
-        print(content_idea)
+        print("==========content_idea",content_idea)
         post_title = content_plan.get('title')
-        
+        print("==========campaign desc",campaign_desc)
         prompt = (
-                f"Dựa vào tên thương hiệu '{theme_title}', mô tả kênh, và yêu cầu cụ thể cho ngày hôm nay, hãy viết một bài đăng dạng {format_type} bằng tiếng Việt.\n\n"
+                f"Hãy tạo một bài viết bằng tiếng Việt về '{theme_title}' kết hợp giữa tính năng sản phẩm và triết lý sống, tạo sự đồng điệu với người đọc.\n\n"
                 f"--- TÊN THƯƠNG HIỆU ---\n{theme_title}\n\n"
-                f"--- MÔ TẢ KÊNH ---\n{theme_story}\n\n"
+                f"--- TRIẾT LÝ & GIÁ TRỊ ---\n{theme_story}\n\n"
                 f"--- MỤC TIÊU BÀI VIẾT ---\n{goal}\n\n"
                 f"--- TIÊU ĐỀ BÀI VIẾT ---\n{post_title}\n\n"
                 f"--- Ý TƯỞNG NỘI DUNG ---\n{content_idea}\n\n"
-                f"--- YÊU CẦU ---\n"
-                f"- Giọng văn: Gần gũi, chân thật, đồng cảm, truyền cảm hứng. Có thể thêm hài hước/suy tư tứ đề.\n" 
-                f"- Cấu trúc: Mở đầu thu hút, thân phát triển ý, kết bài ý nghĩa.\n"
-                f"- Kết bài: Khuyến khích tương tác (câu hỏi mở) hoặc đưa ra lời khích lệ/hành động nhỏ.\n"
-                f"- Thi thoảng Sử dụng emoji (VD: 💡🤔💪❤️🙏😢📈🤝🌟✨) phù hợp, tự nhiên để tăng biểu cảm. Đừng lạm dụng.\n\n"
-                "Output: ONLY a valid JSON object with a single key 'post_content' containing the full Vietnamese post as a single string."
             )
 
         # System prompt for content generation
-        system_prompt = """
-        You are an expert AI assistant specializing in creating social media content and assets based on provided campaign knowledge and specific instructions. Your tasks include:
-            1. Generating creative Vietnamese brand names relevant to the campaign context.
-            2. Creating content schedules (Vietnamese topics/quotes) aligned with the campaign strategy for a specified number of days.
-            3. Writing full Vietnamese storytelling posts reflecting the campaign's tone, themes, and target audience, using the provided context for a specific day.
-            4. Evaluating and improving posts based on relevance, insight, value, emotion, tone, emoji use, and call to action.
-            Output ONLY the valid JSON object without surrounding text or markdown.
-            Language: Primarily Vietnamese
+        system_prompt = f"""
+        Bạn là trợ lý AI chuyên tạo nội dung kết nối sản phẩm với giá trị sống. Nhiệm vụ:
+            1. Phân tích sâu tính năng sản phẩm và liên hệ với triết lý sống phù hợp.
+            2. Tạo nội dung chân thực, tập trung vào giá trị thay vì quảng cáo thuần túy.
+            3. Viết bài bằng tiếng Việt với giọng văn đồng cảm, khơi gợi suy ngẫm và thú vị theo định dạng {format_type}.
+            4. Kết hợp khéo léo giữa thông tin sản phẩm và bài học cuộc sống.
+            6. Dựa vào mô tả {campaign_desc}
+            
+            Xuất ra ĐÚNG ĐỊNH DẠNG JSON theo yêu cầu, không thêm text hay markdown.
+
+            Ngôn ngữ: Tiếng Việt là chính
         """
         
         # Generate response using Gemini API
@@ -272,7 +269,7 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_tit
         print(f"❌ Error generating post after {elapsed_time:.2f} seconds: {str(e)}")
         return {
             "title": content_plan.get('title'),
-            "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated for campaign '{campaign_title}'.",
+            "content": f"This post is based on theme: '{theme_title}'\n\n{theme_story}\n\nGenerated with description: '{campaign_desc}'.",
             "post_metadata": None
         }
 
@@ -301,7 +298,7 @@ async def create_default_content_plan(theme_title: str, theme_story: str, num_po
     content = json.loads(response.text)
     return content #.model_dump()
 
-async def process_with_semaphore(theme_title: str, theme_story: str, campaign_title: str, content_plan: Optional[Dict[str, Any]] = None):
+async def process_with_semaphore(theme_title: str, theme_story: str, campaign_desc: str, content_plan: Optional[Dict[str, Any]] = None):
     # Create a semaphore to limit concurrent API calls
     semaphore = asyncio.Semaphore(10)  # Limit to 10 concurrent API calls
     
@@ -337,7 +334,7 @@ async def process_with_semaphore(theme_title: str, theme_story: str, campaign_ti
                 return await generate_post_content(
                     theme_title,
                     theme_story,
-                    campaign_title,
+                    campaign_desc,
                     item
                 )
             except Exception as e:
@@ -432,11 +429,13 @@ async def generate_posts_from_theme(theme: DBTheme, db_factory, campaign_data: D
         
         # Enrich the theme story with campaign context
         if campaign_data:
+            print('campaign_data existed')
             brand_voice = campaign_data.get('brandVoice', '')
             key_messages = campaign_data.get('keyMessages', [])
             content_guidelines = campaign_data.get('contentGuidelines', '')
             
             enriched_story = f"{theme.story}\n\nBrand Voice: {brand_voice}\n"
+            print("============ enriched_story",enriched_story)
             if key_messages:
                 enriched_story += f"Key Messages:\n" + "\n".join([f"- {msg}" for msg in key_messages]) + "\n"
             if content_guidelines:
@@ -455,7 +454,7 @@ async def generate_posts_from_theme(theme: DBTheme, db_factory, campaign_data: D
     posts = await process_with_semaphore(
         theme.title,
         enriched_story,
-        campaign.title,
+        campaign.description,
         content_plan
     )
     
