@@ -242,6 +242,9 @@ async def generate_post_content(theme_title: str, theme_story: str, campaign_des
             3. Viết bài bằng tiếng Việt với giọng văn đồng cảm, khơi gợi suy ngẫm và thú vị theo định dạng {format_type}.
             4. Kết hợp khéo léo giữa thông tin sản phẩm và bài học cuộc sống.
             6. Dựa vào mô tả {campaign_desc}
+
+            Mô tả nội dung triển khai. Nếu là storytelling, **tuyệt đối không được mô tả công dụng trực tiếp của sản phẩm**, chỉ được thể hiện sản phẩm qua hành động, tình huống, hoặc mối quan hệ.
+            Truyền tải một vài giá trị về kiến thức/thông tin độc đáo/cảm xúc (1 câu nói kinh điển, 1 câu thơ kinh điển, 1 thành ngữ kinh điển nói về tình cảm gia đình, ...)
             
             Xuất ra ĐÚNG ĐỊNH DẠNG JSON theo yêu cầu, không thêm text hay markdown.
 
