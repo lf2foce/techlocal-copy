@@ -119,12 +119,27 @@ def get_image_prompts(post_id: int, db: Session = Depends(get_db)):
 #     result = mock_generate_images_for_post(post_id, db)
 #     return {"status": "success", "images": result}
 
+# Set up logger
+import logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 @router.post("/{post_id}/generate_images_real")
-async def generate_real_images_for_post(post_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db), num_images: int = None, style: str = None, image_service: str = "gemini"):
+async def generate_real_images_for_post(
+    post_id: int, 
+    background_tasks: BackgroundTasks, 
+    db: Session = Depends(get_db), 
+    num_images: int = None, 
+    style: str = None, 
+    image_service: str = "gemini"
+):
     # Get values from query parameters or use defaults
     num_images = num_images if num_images is not None else 1
     style = style if style is not None else "realistic"
-    print(f"Received request with style: {style}, num_images: {num_images}, service: {image_service}")
+    logger.info(f"Received request with style: {style}, num_images: {num_images}, service: {image_service}")
     
     post = db.query(ContentPost).filter(ContentPost.id == post_id).first()
     if not post:
@@ -132,82 +147,141 @@ async def generate_real_images_for_post(post_id: int, background_tasks: Backgrou
 
     # Update post status to indicate image generation is in progress
     post.image_status = "generating"
+    post.image_progress = 0  # Assuming you've added this field to your model
+    post.image_status_detail = "Queued for processing"
     db.commit()
     db.refresh(post)
 
-    async def generate_images_background():
+    # Create a task that will run in the background
+    asyncio.create_task(process_image_generation(post_id, num_images, style, image_service))
+    
+    return {
+        "status": "processing", 
+        "message": "Image generation started in background",
+        "post_id": post_id
+    }
+
+# This function runs as a separate task in the event loop
+async def process_image_generation(post_id: int, num_images: int, style: str, image_service: str):
+    # Create a new session for database updates
+    from database.db import SessionLocal
+    async_db = None
+    
+    try:
+        async_db = SessionLocal()
+        
+        # Get fresh post instance in this session
+        post_instance = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
+        if not post_instance:
+            logger.error(f"Post {post_id} not found in background task")
+            return
+
         try:
-            # Create a new session for database updates
-            from database.db import SessionLocal
-            async_db = SessionLocal()
-            try:
-                # Get fresh post instance in this session
-                post_instance = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
-                if not post_instance:
-                    raise ValueError(f"Post {post_id} not found")
-
-                # Generate prompts in background with style preference
-                prompt_tuples = generate_image_prompts(post_instance.content, style=style, num_prompts=num_images)
-                # Extract only english_prompts for image generation
-                prompts = [eng for _, eng, _ in prompt_tuples]
-
-                print(f"Generated {len(prompts)} prompts with style '{style}'")
-                print('Prompts:', prompts)
-                print("Starting image generation...")
-
-                
-                urls = await asyncio.gather(*[
-                    generate_image(
-                        prompt,
-                        service=image_service,
-                        post_id=post_id if image_service.lower() == "gemini" else None
-                    )
-                    for prompt in prompts
-                ])
-                print(f"Generated image URLs: {urls}")
-
-                # Build final image JSON
-                images = []
-                for i, (prompt, url) in enumerate(zip(prompts, urls)):
-                    if url:  # Only add successful generations
-                        images.append({
-                            "url": url,
-                            "prompt": prompt,
-                            "order": i+1,
-                            "isSelected": True,
-                            "provider": image_service,
-                            "metadata": {
-                                "width": 9,
-                                "height": 16,
-                                "style": style
+            # Update progress
+            await update_progress(async_db, post_instance, 10, "Generating prompts")
+            
+            # Directly await the async function - no run_in_executor needed
+            prompt_tuples = await generate_image_prompts(
+                post_instance.content, 
+                style=style, 
+                num_prompts=num_images
+            )
+            
+            # Extract only english_prompts for image generation
+            prompts = [eng for _, eng, _ in prompt_tuples]
+            
+            logger.info(f"Generated {len(prompts)} prompts with style '{style}'")
+            
+            await update_progress(async_db, post_instance, 20, f"Starting generation of {len(prompts)} images")
+            
+            # Process images in parallel with semaphore to limit concurrency
+            semaphore = asyncio.Semaphore(3)  # Limit to 3 concurrent image generations
+            
+            async def process_single_image(idx, prompt):
+                async with semaphore:
+                    try:
+                        # Generate image
+                        url = await generate_image(
+                            prompt,
+                            service=image_service,
+                            post_id=post_id if image_service.lower() == "gemini" else None
+                        )
+                        
+                        if url:
+                            return {
+                                "url": url,
+                                "prompt": prompt,
+                                "order": idx + 1,
+                                "isSelected": True,
+                                "provider": image_service,
+                                "metadata": {
+                                    "width": 9,
+                                    "height": 16,
+                                    "style": style
+                                }
                             }
-                        })
-
-                # Update post with generated images
-                post_instance.images = {"images": images}
-                post_instance.image_status = "completed" if images else "failed"
-                async_db.commit()
-                async_db.refresh(post_instance)
-                print("Done: Successfully updated post with generated images in database.")
-            finally:
-                async_db.close()
-
+                        return None
+                    except Exception as e:
+                        logger.error(f"Error generating image {idx+1}: {str(e)}")
+                        await update_progress(
+                            async_db, 
+                            post_instance, 
+                            None,  # Don't update progress percentage
+                            f"Error with image {idx+1}: {str(e)[:100]}"
+                        )
+                        return None
+            
+            # Create tasks for all images
+            image_tasks = []
+            for i, prompt in enumerate(prompts):
+                task = process_single_image(i, prompt)
+                image_tasks.append(task)
+            
+            # Process images and maintain original order
+            results = await asyncio.gather(*image_tasks)
+            
+            # Filter out None results (failed generations) but preserve ordering
+            images = [img for img in results if img]
+            
+            # Update progress
+            await update_progress(
+                async_db,
+                post_instance,
+                90,
+                f"Generated {len(images)}/{len(prompts)} images successfully"
+            )
+            
+            # Update post with generated images
+            post_instance.images = {"images": images}
+            post_instance.image_status = "completed" if images else "failed"
+            post_instance.image_progress = 100
+            post_instance.image_status_detail = f"Completed with {len(images)} images" if images else "Failed to generate any images"
+            async_db.commit()
+            
+            logger.info(f"Successfully completed image generation for post {post_id}")
+            
         except Exception as e:
-            print(f"Error in background task: {str(e)}")
-            # Create a new session for error handling
-            async_db = SessionLocal()
-            try:
-                post_instance = async_db.query(ContentPost).filter(ContentPost.id == post_id).first()
-                if post_instance:
-                    post_instance.image_status = "failed"
-                    async_db.commit()
-            finally:
-                async_db.close()
+            logger.exception(f"Error in image generation task: {str(e)}")
+            post_instance.image_status = "failed"
+            post_instance.image_status_detail = f"Error: {str(e)[:200]}"
+            post_instance.image_progress = 0
+            async_db.commit()
+            
+    finally:
+        if async_db:
+            async_db.close()
 
-    # Schedule the background task
-    background_tasks.add_task(generate_images_background)
-
-    return {"status": "processing", "message": "Image generation started in background"}
+# Helper function to update progress
+async def update_progress(db, post, progress=None, status_detail=None):
+    try:
+        if progress is not None:
+            post.image_progress = progress
+        if status_detail is not None:
+            post.image_status_detail = status_detail
+        db.commit()
+        logger.debug(f"Updated progress for post {post.id}: {progress}%, {status_detail}")
+    except Exception as e:
+        logger.error(f"Failed to update progress: {str(e)}")
 
 
 @router.post("/posts/batch_generate_images")
