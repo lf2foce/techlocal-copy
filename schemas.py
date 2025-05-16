@@ -66,10 +66,20 @@ class ContentItem(BaseModel):
 class Plan(BaseModel):
     items: List[ContentItem]
 
+# class ThemeMetadata(BaseModel):
+#     tone: Optional[str] = None  # Giọng văn của theme
+#     voice: Optional[str] = None  # Phong cách viết
+#     target_emotion: Optional[str] = None  # Cảm xúc mục tiêu
+#     key_message: Optional[str] = None  # Thông điệp chính
+#     keywords: Optional[List[str]] = None  # Từ khóa chính
+#     campaign_alignment_score: Optional[float] = Field(None, ge=0, le=1)  # Độ phù hợp với campaign (0-1)
+#     insight_usage_score: Optional[float] = Field(None, ge=0, le=1)  # Mức độ khai thác insight (0-1)
+
 class ThemeBase(BaseModel):
     title: str
     story: Optional[str] = None
-    content_plan: Optional[Plan] = None 
+    content_plan: Optional[Plan] = None
+    # metadata: Optional[ThemeMetadata] = None
 
 class ThemeResponse(ThemeBase):
     id: int

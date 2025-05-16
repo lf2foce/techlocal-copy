@@ -164,8 +164,8 @@ async def generate_campaign_meta(campaign: CampaignInput, db: Session) -> Descri
 
     # Use asyncio.create_task to run in true background
     response = await client.aio.models.generate_content(
-        # model='gemini-2.0-flash',
-        model='gemini-2.5-flash-preview-04-17',
+        model='gemini-2.0-flash',
+        # model='gemini-2.5-flash-preview-04-17',
         contents=f"""Phân tích thông tin chiến dịch để xác định các yếu tố description prompt.  Tiêu đề: {campaign.title}
             Mô tả: {campaign.description}
             Đối tượng: {campaign.targetCustomer}
