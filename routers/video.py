@@ -51,6 +51,15 @@ async def generate_video_prompt(content: str) -> VideoPrompt:
     3. Key moments and transitions
     4. Style and aesthetic direction
     
+    Rewrite the following user video idea for Google Veo video generation, allowing only neutral mentions of 'person', 'people', 'figure', 'individual', 'crowd', or 'silhouette'.
+    Do NOT use words like 'man', 'woman', 'boy', 'girl', 'child', 'family', 'father', 'mother', 'emotion', 'dream', 'inspire', 'hope', 'love', 'community', 'success', 'achievement', 'relationship', or anything about feelings.
+    Do NOT describe facial expressions, smiles, hugs, or social interactions.
+    Focus on the environment and actions, and add people only as a neutral presence.
+    Examples:
+    - A person walking along a forest path with sunlight streaming through the trees.
+    - Several people riding bicycles on a country road under a blue sky.
+    - Figures sitting quietly on park benches, surrounded by green trees.
+
     Avoid any direct product mentions or advertising language. Instead, focus on storytelling and emotional connection.
     """
     
