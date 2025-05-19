@@ -5,6 +5,8 @@ from routers.campaigns import router as campaigns_router
 from routers.themes import router as themes_router
 from routers.scheduler import router as scheduler_router
 from routers.content import router as content_router
+from routers.video import router as video_router
+
 from routers.bot import telegram_router , telegram_lifespan
 
 from services.init_gemini import init_vertexai
@@ -36,7 +38,9 @@ app.include_router(campaigns_router)
 app.include_router(themes_router)
 app.include_router(scheduler_router)
 app.include_router(content_router)
+app.include_router(video_router)
 app.include_router(telegram_router)
+
 @app.get("/")
 def read_root():
     return {"message": "Campaign system running."}
