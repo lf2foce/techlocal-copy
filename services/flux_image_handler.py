@@ -16,7 +16,7 @@ async def generate_and_upload_flux(
     prompt: str,
     service: str = "flux",
     post_id: int = None,
-    bucket_name: str = "bucket_nextcopy"
+    bucket_name: str = "bucket_nextcopy_content"
 ) -> str:
     """Generate image using FLUX model via Together API.
     Returns the image URL directly from Together API or placeholder on failure.

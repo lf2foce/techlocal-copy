@@ -138,9 +138,9 @@ async def generate_video_url(post_id: int, content: str, image_urls: list[str]) 
     # This function handles the actual video generation and returns the URL
     try:
         logging.info(f"Starting video generation for post {post_id}")
-        PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "thematic-land-451915-j3")
+        PROJECT_ID = os.environ.get("GOOGLE_CLOUD_PROJECT", "marketing-475304")
         LOCATION = os.environ.get("GOOGLE_CLOUD_REGION", "us-central1")
-        output_gcs = "gs://bucket_nextcopy/video/"
+        output_gcs = "gs://bucket_nextcopy_content/video/"
         logging.info(f"Using GCS output path: {output_gcs}")
 
         # Generate optimized video prompt
@@ -152,7 +152,7 @@ async def generate_video_url(post_id: int, content: str, image_urls: list[str]) 
 
         # Configure video generation with enhanced prompt
         operation = client.models.generate_videos(
-            model="veo-2.0-generate-001",  # Use appropriate model name
+            model="veo-3.0-generate-001",  # Latest Veo 3.0 model with improved quality and sound generation
             prompt=f"{video_prompt.visual_description}\n\nStyle: {video_prompt.style_guide if video_prompt.style_guide else 'Natural and authentic'}",
             config=types.GenerateVideosConfig(
                 aspect_ratio="9:16",
