@@ -121,7 +121,7 @@ async def upload_image_gg_storage_async(image_bytes: bytes, bucket_name: str, pr
         gc.collect()
 
 
-async def generate_and_upload_async(prompt: str, post_id: int, prefix: str = "gemini_image_", bucket_name: str = "bucket_nextcopy") -> str:
+async def generate_and_upload_async(prompt: str, post_id: int, prefix: str = "gemini_image_", bucket_name: str = "bucket_nextcopy_content") -> str:
     """
     Generates an image from a prompt, uploads it to GCS, and returns the public URL.
     Returns a placeholder if generation or upload fails.
