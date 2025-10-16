@@ -6,11 +6,11 @@ python-dotenv
 requests
 psycopg2-binary
 python-multipart
-openai
+# openai
 pillow
-pandas
+pandas==2.3.3
 openpyxl
-google-genai
+google-genai==1.45.0
 nest-asyncio
 google-cloud-storage
 together
