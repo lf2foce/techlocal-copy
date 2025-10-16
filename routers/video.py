@@ -152,7 +152,7 @@ async def generate_video_url(post_id: int, content: str, image_urls: list[str]) 
 
         # Configure video generation with enhanced prompt
         operation = client.models.generate_videos(
-            model="veo-3.0-generate-001",  # Latest Veo 3.0 model with improved quality and sound generation
+            model="veo-2.0-generate-001",  # Latest Veo 3.0 model with improved quality and sound generation
             prompt=f"{video_prompt.visual_description}\n\nStyle: {video_prompt.style_guide if video_prompt.style_guide else 'Natural and authentic'}",
             config=types.GenerateVideosConfig(
                 aspect_ratio="9:16",
